@@ -37,3 +37,6 @@ mongoose
 app.get("/", (req, res) => {
   res.send("UniEats backend running");
 });
+
+const authRoutes = require("./src/routes/authRoutes");
+app.use("/api/auth", authRoutes);
