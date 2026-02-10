@@ -3,10 +3,18 @@ import { Link } from "react-router-dom";
 import api from "../services/api";
 
 function Register() {
+  const [role, setRole] = useState("student");
+
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("student"); // student | vendor
+
+  // Vendor-only fields
+  const [vendorName, setVendorName] = useState("");
+  const [vendorPhone, setVendorPhone] = useState("");
+  const [vendorLocation, setVendorLocation] = useState("");
+  const [vendorLogo, setVendorLogo] = useState(null);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,18 +24,39 @@ function Register() {
     setError("");
     setSuccess("");
 
+    // Basic validation
     if (!name || !email || !password) {
-      setError("Please fill in all fields");
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    // Vendor validation
+    if (
+      role === "vendor" &&
+      (!vendorName || !vendorPhone || !vendorLocation || !vendorLogo)
+    ) {
+      setError("Please fill in all vendor details including logo");
       return;
     }
 
     setLoading(true);
+
     try {
-      const res = await api.post("/api/users/register", {
-        name,
-        email,
-        password,
-        role,
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("password", password);
+      formData.append("role", role);
+
+      if (role === "vendor") {
+        formData.append("vendorName", vendorName);
+        formData.append("vendorPhone", vendorPhone);
+        formData.append("vendorLocation", vendorLocation);
+        formData.append("vendorLogo", vendorLogo);
+      }
+
+      await api.post("/api/users/register", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setSuccess(
@@ -36,14 +65,17 @@ function Register() {
           : "Registration successful. You can now login."
       );
 
+      // Reset form
       setName("");
       setEmail("");
       setPassword("");
+      setVendorName("");
+      setVendorPhone("");
+      setVendorLocation("");
+      setVendorLogo(null);
       setRole("student");
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Registration failed"
-      );
+      setError(err.response?.data?.message || "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -55,7 +87,6 @@ function Register() {
 
       <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
 
-        {/* Header */}
         <h2 className="text-3xl font-bold text-center text-gray-800">
           Create Account
         </h2>
@@ -63,7 +94,6 @@ function Register() {
           Student & Vendor Registration
         </p>
 
-        {/* Error / Success */}
         {error && (
           <p className="mt-4 text-center text-red-600 font-medium">
             {error}
@@ -102,37 +132,66 @@ function Register() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          {/* Name */}
           <input
             type="text"
             placeholder="Full name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 
-              rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
           />
 
-          {/* Email */}
           <input
             type="email"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 
-              rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
           />
 
-          {/* Password */}
           <input
             type="password"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 
-              rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
           />
 
-          {/* Button */}
+          {/* Vendor-only fields */}
+          {role === "vendor" && (
+            <>
+              <input
+                type="text"
+                placeholder="Vendor / Shop Name"
+                value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+              />
+
+              <input
+                type="text"
+                placeholder="Contact Number"
+                value={vendorPhone}
+                onChange={(e) => setVendorPhone(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+              />
+
+              <input
+                type="text"
+                placeholder="Location / Campus"
+                value={vendorLocation}
+                onChange={(e) => setVendorLocation(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+              />
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setVendorLogo(e.target.files[0])}
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            </>
+          )}
+
           <button
             type="submit"
             disabled={loading}
@@ -148,7 +207,6 @@ function Register() {
           </button>
         </form>
 
-        {/* Login link */}
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{" "}
           <Link
