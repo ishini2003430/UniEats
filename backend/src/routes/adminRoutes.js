@@ -1,7 +1,6 @@
 const express = require("express");
 const User = require("../models/User");
-import ActivityLog from "../models/ActivityLog.js";
-
+const ActivityLog = require("../models/ActivityLog");
 
 const router = express.Router();
 
@@ -93,19 +92,20 @@ router.put("/vendors/approve/:id", async (req, res) => {
     }
 
     vendor.status = "active";
-await vendor.save();
+    await vendor.save();
 
-/* -------- ACTIVITY LOG -------- */
-await ActivityLog.create({
-  type: "VENDOR_APPROVED",
-  message: `Vendor approved: ${vendor.shopName}`,
-  actorRole: "Admin",
+    /* -------- ACTIVITY LOG -------- */
+    await ActivityLog.create({
+    type: "VENDOR_APPROVED",
+    message: `Vendor approved: ${vendor.vendorName || vendor.name}`,
+    actorRole: "Admin",
 });
-/* ------------------------------ */
 
-res.json({ message: "Vendor approved successfully" });
+    /* ------------------------------ */
 
+    res.json({ message: "Vendor approved successfully" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "Vendor approval failed" });
   }
 });
@@ -129,8 +129,10 @@ router.delete("/users/:id", async (req, res) => {
   }
 });
 
-// GET recent activity logs
-router.get("/activities", adminAuth, async (req, res) => {
+/* =====================================================
+   RECENT ACTIVITY
+===================================================== */
+router.get("/activities", async (req, res) => {
   try {
     const activities = await ActivityLog.find()
       .sort({ createdAt: -1 })

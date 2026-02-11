@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -5,56 +6,59 @@ import {
   Store,
   AlertCircle,
 } from "lucide-react";
+import api from "../services/api";
 
-const activities = [
-  {
-    id: 1,
-    type: "vendor_registration",
-    message: "New vendor registration: Campus Bites",
-    time: "2 hours ago",
-    icon: Store,
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    id: 2,
-    type: "student_signup",
-    message: "Student account created: Alex Johnson",
-    time: "4 hours ago",
-    icon: UserPlus,
-    color: "text-green-500",
-    bg: "bg-green-50",
-  },
-  {
-    id: 3,
-    type: "vendor_approved",
-    message: "Vendor approved: Taco Hub",
-    time: "Yesterday",
+/* -------- Activity UI Mapping -------- */
+const ACTIVITY_UI = {
+  VENDOR_APPROVED: {
     icon: CheckCircle2,
     color: "text-emerald-500",
     bg: "bg-emerald-50",
   },
-  {
-    id: 4,
-    type: "alert",
-    message: "High order volume detected in North Campus",
-    time: "Yesterday",
-    icon: AlertCircle,
-    color: "text-amber-500",
-    bg: "bg-amber-50",
+  VENDOR_REGISTRATION: {
+    icon: Store,
+    color: "text-blue-500",
+    bg: "bg-blue-50",
   },
-  {
-    id: 5,
-    type: "student_signup",
-    message: "Student account created: Sarah Williams",
-    time: "2 days ago",
+  STUDENT_SIGNUP: {
     icon: UserPlus,
     color: "text-green-500",
     bg: "bg-green-50",
   },
-];
+  ALERT: {
+    icon: AlertCircle,
+    color: "text-amber-500",
+    bg: "bg-amber-50",
+  },
+};
+
+/* -------- Time Formatter -------- */
+function timeAgo(date) {
+  const seconds = Math.floor(
+    (Date.now() - new Date(date)) / 1000
+  );
+
+  if (seconds < 60) return "Just now";
+  if (seconds < 3600)
+    return `${Math.floor(seconds / 60)} min ago`;
+  if (seconds < 86400)
+    return `${Math.floor(seconds / 3600)} hours ago`;
+
+  return `${Math.floor(seconds / 86400)} days ago`;
+}
 
 function ActivityFeed() {
+  const [activities, setActivities] = useState([]);
+
+  useEffect(() => {
+    api
+      .get("/api/admin/activities")
+      .then((res) => setActivities(res.data))
+      .catch((err) =>
+        console.error("Failed to load activities", err)
+      );
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -72,21 +76,25 @@ function ActivityFeed() {
       {/* Activity List */}
       <div className="divide-y divide-slate-50">
         {activities.map((activity, index) => {
-          const Icon = activity.icon;
+          const ui =
+            ACTIVITY_UI[activity.type] ||
+            ACTIVITY_UI.ALERT;
+
+          const Icon = ui.icon;
 
           return (
             <motion.div
-              key={activity.id}
+              key={activity._id}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 + index * 0.1 }}
               className="p-4 flex items-center hover:bg-slate-50 transition-colors"
             >
               <div
-                className={`p-2 rounded-full ${activity.bg} mr-4`}
+                className={`p-2 rounded-full ${ui.bg} mr-4`}
               >
                 <Icon
-                  className={`w-4 h-4 ${activity.color}`}
+                  className={`w-4 h-4 ${ui.color}`}
                 />
               </div>
 
@@ -95,7 +103,7 @@ function ActivityFeed() {
                   {activity.message}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {activity.time}
+                  {timeAgo(activity.createdAt)}
                 </p>
               </div>
             </motion.div>
