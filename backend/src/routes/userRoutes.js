@@ -1,15 +1,15 @@
 const express = require("express");
 const upload = require("../../middleware/upload");
 const User = require("../models/User");
+const ActivityLog = require("../models/ActivityLog"); // ✅ ADD THIS
 
 const router = express.Router();
 
 router.post(
   "/register",
-  upload.single("vendorLogo"), // 🔥 multer MUST be first
+  upload.single("vendorLogo"),
   async (req, res) => {
     try {
-      // multer ensures req.body exists
       const {
         name,
         email,
@@ -20,21 +20,18 @@ router.post(
         vendorLocation,
       } = req.body;
 
-      // 🔐 Basic validation
       if (!name || !email || !password || !role) {
         return res.status(400).json({
           message: "Name, email, password and role are required",
         });
       }
 
-      // 🔐 Role validation
       if (!["student", "vendor"].includes(role)) {
         return res.status(400).json({
           message: "Invalid role",
         });
       }
 
-      // 🔁 Check existing user
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
@@ -42,23 +39,42 @@ router.post(
         });
       }
 
-      // 🧾 Create user
       const user = new User({
         name,
         email,
-        password, // ⚠️ (we will hash later – next step)
+        password,
         role,
 
-        // vendor-only fields
         vendorName: role === "vendor" ? vendorName : null,
         vendorPhone: role === "vendor" ? vendorPhone : null,
         vendorLocation: role === "vendor" ? vendorLocation : null,
-        vendorLogo: role === "vendor" && req.file ? req.file.filename : null,
-
-        // status auto-set by schema (pending / active)
+        vendorLogo:
+          role === "vendor" && req.file
+            ? req.file.filename
+            : null,
       });
 
       await user.save();
+
+      /* -------- ACTIVITY LOG -------- */
+      if (role === "student") {
+        await ActivityLog.create({
+          type: "STUDENT_SIGNUP",
+          message: `New student registered: ${name}`,
+          actorRole: "Student",
+          relatedUser: user._id,
+        });
+      }
+
+      if (role === "vendor") {
+        await ActivityLog.create({
+          type: "VENDOR_REGISTRATION",
+          message: `New vendor registration: ${vendorName}`,
+          actorRole: "Vendor",
+          relatedUser: user._id,
+        });
+      }
+      /* ------------------------------ */
 
       return res.status(201).json({
         message:

@@ -96,11 +96,11 @@ router.put("/vendors/approve/:id", async (req, res) => {
 
     /* -------- ACTIVITY LOG -------- */
     await ActivityLog.create({
-    type: "VENDOR_APPROVED",
-    message: `Vendor approved: ${vendor.vendorName || vendor.name}`,
-    actorRole: "Admin",
-});
-
+      type: "VENDOR_APPROVED",
+      message: `Vendor approved: ${vendor.vendorName || vendor.name}`,
+      actorRole: "Admin",
+      relatedUser: vendor._id,
+    });
     /* ------------------------------ */
 
     res.json({ message: "Vendor approved successfully" });
@@ -121,10 +121,34 @@ router.delete("/users/:id", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const userName = user.vendorName || user.name;
+    const userRole = user.role;
+
     await user.deleteOne();
+
+    /* -------- ACTIVITY LOG -------- */
+    if (userRole === "student") {
+      await ActivityLog.create({
+        type: "STUDENT_DELETED",
+        message: `Student deleted: ${userName}`,
+        actorRole: "Admin",
+        relatedUser: user._id,
+      });
+    }
+
+    if (userRole === "vendor") {
+      await ActivityLog.create({
+        type: "VENDOR_DELETED",
+        message: `Vendor deleted: ${userName}`,
+        actorRole: "Admin",
+        relatedUser: user._id,
+      });
+    }
+    /* ------------------------------ */
 
     res.json({ message: "User deleted successfully" });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: "User deletion failed" });
   }
 });
