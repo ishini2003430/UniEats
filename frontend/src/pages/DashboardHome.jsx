@@ -11,7 +11,6 @@ function DashboardHome({ setView }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  /* ---------------- Load dashboard stats ---------------- */
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -25,7 +24,13 @@ function DashboardHome({ setView }) {
     };
 
     fetchStats();
+
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
   }, []);
+
+  const systemHealthy =
+    stats?.pendingVendors >= 0;
 
   return (
     <div className="space-y-8">
@@ -46,7 +51,7 @@ function DashboardHome({ setView }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
             title="Pending Vendors"
-            value={stats.pendingVendors}
+            value={stats?.pendingVendors}
             trend="Live"
             trendDirection="up"
             icon={Clock}
@@ -56,7 +61,7 @@ function DashboardHome({ setView }) {
 
           <StatsCard
             title="Active Vendors"
-            value={stats.activeVendors}
+            value={stats?.activeVendors}
             trend="Live"
             trendDirection="up"
             icon={Store}
@@ -66,7 +71,7 @@ function DashboardHome({ setView }) {
 
           <StatsCard
             title="Total Students"
-            value={stats.students}
+            value={stats?.students}
             trend="Live"
             trendDirection="up"
             icon={GraduationCap}
@@ -122,7 +127,7 @@ function DashboardHome({ setView }) {
       {/* Activity Feed + System Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <ActivityFeed />
+          <ActivityFeed onViewAll={() => setView("allActivities")} />
         </div>
 
         <motion.div
@@ -132,40 +137,63 @@ function DashboardHome({ setView }) {
           className="bg-slate-900 rounded-xl p-6 text-white flex flex-col justify-between"
         >
           <div>
-            <h3 className="text-lg font-bold mb-2">System Status</h3>
+            <h3 className="text-lg font-bold mb-4">
+              System Status
+            </h3>
 
             <div className="flex items-center mb-6">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></div>
+              <div
+                className={`w-2 h-2 rounded-full mr-2 animate-pulse ${
+                  systemHealthy
+                    ? "bg-emerald-400"
+                    : "bg-red-400"
+                }`}
+              ></div>
               <span className="text-slate-300 text-sm">
-                All systems operational
+                {systemHealthy
+                  ? "All services operational"
+                  : "System requires attention"}
               </span>
             </div>
 
-            <div className="space-y-4">
-              <StatusBar label="Server Load" value="24%" color="bg-emerald-500" />
-              <StatusBar label="Database Usage" value="58%" color="bg-blue-500" />
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-400">
+                  Active Vendors
+                </span>
+                <span className="font-semibold">
+                  {stats?.activeVendors}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-400">
+                  Pending Approvals
+                </span>
+                <span className="font-semibold">
+                  {stats?.pendingVendors}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-slate-400">
+                  Registered Students
+                </span>
+                <span className="font-semibold">
+                  {stats?.students}
+                </span>
+              </div>
             </div>
           </div>
 
-          <button className="mt-8 w-full py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm font-medium transition-colors">
-            View System Logs
+          {/* 🔥 Updated Button */}
+          <button
+            onClick={() => setView("reports")}
+            className="mt-6 w-full py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-sm font-medium transition-colors"
+          >
+            View Detailed Reports
           </button>
         </motion.div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Helper Component ---------------- */
-function StatusBar({ label, value, color }) {
-  return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-400">{label}</span>
-        <span className="text-white">{value}</span>
-      </div>
-      <div className="w-full bg-slate-800 rounded-full h-1.5">
-        <div className={`${color} h-1.5 rounded-full`} style={{ width: value }} />
       </div>
     </div>
   );

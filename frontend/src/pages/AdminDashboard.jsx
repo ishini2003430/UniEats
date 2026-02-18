@@ -6,6 +6,7 @@ import DashboardHome from "./DashboardHome";
 import ManageVendors from "./ManageVendors";
 import ManageActiveVendors from "./ManageActiveVendors";
 import ManageStudents from "./ManageStudents";
+import AllActivities from "./AllActivities"; // ✅ NEW IMPORT
 
 function AdminDashboard() {
   const [view, setView] = useState("home");
@@ -15,10 +16,16 @@ function AdminDashboard() {
     switch (view) {
       case "vendors":
         return <ManageVendors onBack={() => setView("home")} />;
+
       case "activeVendors":
         return <ManageActiveVendors onBack={() => setView("home")} />;
+
       case "students":
         return <ManageStudents onBack={() => setView("home")} />;
+
+      case "allActivities": // ✅ NEW CASE
+        return <AllActivities onBack={() => setView("home")} />;
+
       default:
         return <DashboardHome setView={setView} />;
     }
@@ -53,7 +60,11 @@ function AdminDashboard() {
                 ? "Pending Vendors"
                 : view === "activeVendors"
                 ? "Active Vendors"
-                : "Students"}
+                : view === "students"
+                ? "Students"
+                : view === "allActivities"
+                ? "All Activities" // ✅ NEW TITLE
+                : "Dashboard"}
             </h1>
           </div>
 

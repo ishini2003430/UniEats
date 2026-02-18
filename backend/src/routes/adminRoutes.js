@@ -94,14 +94,12 @@ router.put("/vendors/approve/:id", async (req, res) => {
     vendor.status = "active";
     await vendor.save();
 
-    /* -------- ACTIVITY LOG -------- */
     await ActivityLog.create({
       type: "VENDOR_APPROVED",
       message: `Vendor approved: ${vendor.vendorName || vendor.name}`,
       actorRole: "Admin",
       relatedUser: vendor._id,
     });
-    /* ------------------------------ */
 
     res.json({ message: "Vendor approved successfully" });
   } catch (err) {
@@ -126,7 +124,6 @@ router.delete("/users/:id", async (req, res) => {
 
     await user.deleteOne();
 
-    /* -------- ACTIVITY LOG -------- */
     if (userRole === "student") {
       await ActivityLog.create({
         type: "STUDENT_DELETED",
@@ -144,7 +141,6 @@ router.delete("/users/:id", async (req, res) => {
         relatedUser: user._id,
       });
     }
-    /* ------------------------------ */
 
     res.json({ message: "User deleted successfully" });
   } catch (err) {
@@ -154,17 +150,32 @@ router.delete("/users/:id", async (req, res) => {
 });
 
 /* =====================================================
-   RECENT ACTIVITY
+   RECENT ACTIVITY (Dashboard - Only 5)
 ===================================================== */
 router.get("/activities", async (req, res) => {
   try {
     const activities = await ActivityLog.find()
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(5);   // 👈 changed from 10 to 5
 
     res.json(activities);
   } catch (error) {
     console.error("Failed to fetch activities", error);
+    res.status(500).json({ message: "Failed to load activities" });
+  }
+});
+
+/* =====================================================
+   ALL ACTIVITIES (Full History Page)
+===================================================== */
+router.get("/activities/all", async (req, res) => {
+  try {
+    const activities = await ActivityLog.find()
+      .sort({ createdAt: -1 });
+
+    res.json(activities);
+  } catch (error) {
+    console.error("Failed to fetch all activities", error);
     res.status(500).json({ message: "Failed to load activities" });
   }
 });

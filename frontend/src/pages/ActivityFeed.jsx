@@ -25,6 +25,16 @@ const ACTIVITY_UI = {
     color: "text-green-500",
     bg: "bg-green-50",
   },
+  STUDENT_DELETED: {
+    icon: UserPlus,
+    color: "text-red-500",
+    bg: "bg-red-50",
+  },
+  VENDOR_DELETED: {
+    icon: AlertCircle,
+    color: "text-red-500",
+    bg: "bg-red-50",
+  },
   ALERT: {
     icon: AlertCircle,
     color: "text-amber-500",
@@ -47,12 +57,12 @@ function timeAgo(date) {
   return `${Math.floor(seconds / 86400)} days ago`;
 }
 
-function ActivityFeed() {
+function ActivityFeed({ onViewAll }) {
   const [activities, setActivities] = useState([]);
 
   useEffect(() => {
     api
-      .get("/api/admin/activities")
+      .get("/api/admin/activities") // already limited to 5
       .then((res) => setActivities(res.data))
       .catch((err) =>
         console.error("Failed to load activities", err)
@@ -113,7 +123,10 @@ function ActivityFeed() {
 
       {/* Footer */}
       <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
-        <button className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors">
+        <button
+          onClick={onViewAll}
+          className="text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
+        >
           View All Activity
         </button>
       </div>
