@@ -3,6 +3,8 @@ const Order = require("../../models/order-n-cancellation/Order");
 const Food = require("../../models/order-n-cancellation/Food");
 const PickupSlot = require("../../models/order-n-cancellation/PickupSlot");
 
+const CANCELLATION_WINDOW_MINUTES = Number(process.env.ORDER_CANCELLATION_WINDOW_MINUTES || 10);
+
 const isHoldActive = (slot) => {
   if (!slot.isHeld) return false;
   if (!slot.holdUntil) return true;
@@ -17,9 +19,48 @@ const toClientOrder = (order) => ({
   vendorId: order.vendorId,
   foodItemIds: order.foodItemIds,
   status: order.status,
+  cancelledAt: order.cancelledAt,
+  cancelReason: order.cancelReason,
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
 });
+
+const getCancelEligibility = (order) => {
+  const cancelDeadlineAt = new Date(
+    new Date(order.createdAt).getTime() + CANCELLATION_WINDOW_MINUTES * 60 * 1000
+  );
+
+  if (order.status !== "Pending") {
+    return {
+      canCancel: false,
+      reason: "status_not_pending",
+      message: "Cannot cancel - order is being prepared",
+      cancelDeadlineAt,
+      remainingSeconds: 0,
+    };
+  }
+
+  const now = Date.now();
+  const remainingMs = cancelDeadlineAt.getTime() - now;
+
+  if (remainingMs <= 0) {
+    return {
+      canCancel: false,
+      reason: "deadline_passed",
+      message: "Cancellation window expired",
+      cancelDeadlineAt,
+      remainingSeconds: 0,
+    };
+  }
+
+  return {
+    canCancel: true,
+    reason: "allowed",
+    message: "Order can be cancelled",
+    cancelDeadlineAt,
+    remainingSeconds: Math.floor(remainingMs / 1000),
+  };
+};
 
 exports.createOrder = async (req, res) => {
   const session = await mongoose.startSession();
@@ -198,5 +239,104 @@ exports.queryOrders = async (req, res) => {
   } catch (error) {
     console.error("queryOrders error:", error);
     return res.status(500).json({ message: "Failed to query orders" });
+  }
+};
+
+exports.getCancelEligibility = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Order id must be a valid ObjectId" });
+    }
+
+    const order = await Order.findOne({
+      _id: id,
+      studentId: req.student._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    return res.json(getCancelEligibility(order));
+  } catch (error) {
+    console.error("getCancelEligibility error:", error);
+    return res.status(500).json({ message: "Failed to check cancellation eligibility" });
+  }
+};
+
+exports.cancelOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { id } = req.params;
+    const reason = req.body && typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Order id must be a valid ObjectId" });
+    }
+
+    const order = await Order.findOne({
+      _id: id,
+      studentId: req.student._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const eligibility = getCancelEligibility(order);
+    if (!eligibility.canCancel) {
+      return res.status(422).json(eligibility);
+    }
+
+    await session.withTransaction(async () => {
+      const orderUpdate = await Order.updateOne(
+        {
+          _id: order._id,
+          studentId: req.student._id,
+          status: "Pending",
+        },
+        {
+          $set: {
+            status: "Cancelled",
+            cancelledAt: new Date(),
+            cancelReason: reason || "Cancelled by student",
+          },
+        },
+        { session }
+      );
+
+      if (!orderUpdate.modifiedCount) {
+        throw new Error("ORDER_STATE_CHANGED");
+      }
+
+      await PickupSlot.updateOne(
+        {
+          _id: order.slotId,
+          currentOrders: { $gt: 0 },
+        },
+        {
+          $inc: { currentOrders: -1 },
+        },
+        { session }
+      );
+    });
+
+    const updatedOrder = await Order.findById(order._id);
+    return res.json({
+      message: "Order cancelled successfully",
+      order: toClientOrder(updatedOrder),
+    });
+  } catch (error) {
+    if (error && error.message === "ORDER_STATE_CHANGED") {
+      return res.status(409).json({ message: "Order status changed, please refresh and try again" });
+    }
+
+    console.error("cancelOrder error:", error);
+    return res.status(500).json({ message: "Failed to cancel order" });
+  } finally {
+    await session.endSession();
   }
 };

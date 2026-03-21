@@ -40,6 +40,15 @@ const orderSchema = new mongoose.Schema(
       default: "Pending",
       index: true,
     },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancelReason: {
+      type: String,
+      default: null,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
