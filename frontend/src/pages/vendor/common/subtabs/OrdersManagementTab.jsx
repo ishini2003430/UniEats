@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   Check,
@@ -40,6 +41,7 @@ function Modal({ title, onClose, children }) {
 const STATUS_OPTIONS = ["Pending", "Preparing", "Ready", "Completed", "Cancelled"];
 
 export default function OrdersManagementTab({ user }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -59,6 +61,8 @@ export default function OrdersManagementTab({ user }) {
   const [statusForm, setStatusForm] = useState({
     status: "Pending",
   });
+
+  const notificationOrderId = searchParams.get("notifyOrderId") || "";
 
   const vendorHeaders = useMemo(() => {
     if (!user?._id) return null;
@@ -113,12 +117,50 @@ export default function OrdersManagementTab({ user }) {
     }
   };
 
+  const focusOrderFromNotification = async (mongoOrderId) => {
+    if (!mongoOrderId || !vendorHeaders) return;
+
+    clearFeedback();
+    setLoadingOrders(true);
+
+    try {
+      const res = await api.get("/api/orders", {
+        headers: vendorHeaders,
+        params: { id: mongoOrderId },
+      });
+
+      const row = res.data && !Array.isArray(res.data) ? [res.data] : [];
+      setOrders(row);
+      setFilters((prev) => ({
+        ...prev,
+        id: mongoOrderId,
+        orderId: "",
+        status: "",
+        slotId: "",
+      }));
+      setOrderSuccess("Focused order from notification");
+    } catch (err) {
+      handleApiError(err, "Failed to open order from notification");
+    } finally {
+      setLoadingOrders(false);
+      const next = new URLSearchParams(searchParams);
+      next.delete("notifyOrderId");
+      setSearchParams(next);
+    }
+  };
+
   useEffect(() => {
     if (vendorHeaders) {
       fetchOrders();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorHeaders]);
+
+  useEffect(() => {
+    if (!notificationOrderId || !vendorHeaders) return;
+    focusOrderFromNotification(notificationOrderId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notificationOrderId, vendorHeaders]);
 
   const openViewModal = (order) => {
     setSelectedOrder(order);

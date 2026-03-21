@@ -195,26 +195,23 @@ export default function StudentOrderProcessPage({ user }) {
     setCheckoutError("");
 
     try {
-      const refs = [];
+      const orderId = buildOrderRef();
 
-      for (const group of vendorGroups) {
-        const orderId = buildOrderRef();
-
-        await api.post(
-          "/api/orders",
-          {
-            studentId: user._id,
+      await api.post(
+        "/api/orders",
+        {
+          studentId: user._id,
+          orderId,
+          vendorSelections: vendorGroups.map((group) => ({
+            vendorId: group.vendorId,
             slotId: selectedSlotByVendor[group.vendorId],
-            orderId,
             foodItemIds: group.items.map((f) => f._id),
-          },
-          { headers: studentHeaders }
-        );
+          })),
+        },
+        { headers: studentHeaders }
+      );
 
-        refs.push(orderId);
-      }
-
-      setLatestOrderRefs(refs);
+      setLatestOrderRefs([orderId]);
       setStep(4);
     } catch (err) {
       setCheckoutError(err?.response?.data?.message || "Failed to place order");

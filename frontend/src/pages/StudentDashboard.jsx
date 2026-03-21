@@ -1,42 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertCircle, Loader2, LogOut, ShoppingCart, X } from "lucide-react";
+import { AlertCircle, Bell, Loader2, LogOut, Package, ShoppingCart } from "lucide-react";
 import api from "../services/api";
+import { connectRealtime, disconnectRealtime } from "../services/realtime";
 
 const formatLkr = (value) => `Rs. ${Number(value || 0).toFixed(2)}`;
-
-const statusClass = (status) => {
-  if (status === "Cancelled") return "bg-rose-100 text-rose-700";
-  if (status === "Completed") return "bg-emerald-100 text-emerald-700";
-  if (status === "Ready") return "bg-blue-100 text-blue-700";
-  if (status === "Preparing") return "bg-amber-100 text-amber-700";
-  return "bg-slate-200 text-slate-700";
-};
 
 export default function StudentDashboard({ user, onLogout }) {
   const navigate = useNavigate();
 
   const [foods, setFoods] = useState([]);
   const [slots, setSlots] = useState([]);
-  const [orders, setOrders] = useState([]);
 
   const [loadingFoods, setLoadingFoods] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [loadingOrders, setLoadingOrders] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [pageError, setPageError] = useState("");
   const [pageSuccess, setPageSuccess] = useState("");
 
   const [cartItems, setCartItems] = useState([]);
 
-  const [cancelModal, setCancelModal] = useState({
-    open: false,
-    order: null,
-    eligibility: null,
-    reason: "",
-    error: "",
-  });
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
 
   const studentHeaders = useMemo(() => {
     if (!user?._id) return null;
@@ -124,31 +110,94 @@ export default function StudentDashboard({ user, onLogout }) {
     }
   };
 
-  const fetchOrders = async () => {
-    if (!studentHeaders) return;
-
-    setLoadingOrders(true);
-    try {
-      const res = await api.get("/api/orders", { headers: studentHeaders });
-      setOrders(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      setPageError(err?.response?.data?.message || "Failed to load your orders");
-    } finally {
-      setLoadingOrders(false);
-    }
-  };
-
   useEffect(() => {
     fetchFoods();
     fetchSlots();
   }, []);
 
-  useEffect(() => {
-    if (studentHeaders) {
-      fetchOrders();
+  const fetchNotifications = async () => {
+    if (!studentHeaders) return;
+
+    try {
+      const res = await api.get("/api/notifications/student", {
+        headers: studentHeaders,
+        params: { limit: 15 },
+      });
+
+      const rows = Array.isArray(res.data?.notifications) ? res.data.notifications : [];
+      setNotifications(rows);
+      setUnreadCount(Number(res.data?.unreadCount || 0));
+    } catch (err) {
+      console.error("fetch student notifications error:", err);
     }
+  };
+
+  const markAllStudentNotificationsRead = async () => {
+    if (!studentHeaders || unreadCount === 0) return;
+
+    try {
+      await api.patch("/api/notifications/student/read-all", {}, { headers: studentHeaders });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("mark all student notifications read error:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (!studentHeaders) return;
+    fetchNotifications();
+
+    const interval = setInterval(fetchNotifications, 20000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentHeaders]);
+
+  useEffect(() => {
+    if (!studentHeaders) return;
+
+    const socket = connectRealtime({ role: "student", userId: user?._id });
+    if (!socket) return;
+
+    const onNewNotification = (notification) => {
+      if (!notification?._id) return;
+
+      setNotifications((prev) => {
+        const exists = prev.some((item) => String(item._id) === String(notification._id));
+        if (exists) return prev;
+        return [notification, ...prev].slice(0, 20);
+      });
+
+      if (!notification.isRead) {
+        setUnreadCount((prev) => prev + 1);
+      }
+
+      if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+        new Notification(notification.title || "Order notification", {
+          body: notification.message || "You have an order update.",
+        });
+      }
+    };
+
+    socket.on("notification:new", onNewNotification);
+
+    return () => {
+      socket.off("notification:new", onNewNotification);
+      disconnectRealtime();
+    };
+  }, [studentHeaders, user?._id]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isNotifOpen) {
+      markAllStudentNotificationsRead();
+    }
+  }, [isNotifOpen]);
 
   const addToCart = (food) => {
     clearBanner();
@@ -189,54 +238,6 @@ export default function StudentDashboard({ user, onLogout }) {
     navigate(`/student/order?foodIds=${encodeURIComponent(cleanIds.join(","))}`);
   };
 
-  const openCancelFlow = async (order) => {
-    if (!studentHeaders) return;
-
-    setCancelModal({
-      open: true,
-      order,
-      eligibility: null,
-      reason: "",
-      error: "",
-    });
-
-    try {
-      const res = await api.get(`/api/orders/${order._id}/cancel-eligibility`, {
-        headers: studentHeaders,
-      });
-
-      setCancelModal((prev) => ({ ...prev, eligibility: res.data }));
-    } catch (err) {
-      setCancelModal((prev) => ({
-        ...prev,
-        error: err?.response?.data?.message || "Failed to check cancellation eligibility",
-      }));
-    }
-  };
-
-  const submitCancel = async () => {
-    if (!studentHeaders || !cancelModal.order?._id) return;
-
-    setCancelLoading(true);
-    try {
-      await api.patch(
-        `/api/orders/${cancelModal.order._id}/cancel`,
-        { reason: cancelModal.reason || "Cancelled by student" },
-        { headers: studentHeaders }
-      );
-
-      setPageSuccess("Order cancelled successfully");
-      setCancelModal({ open: false, order: null, eligibility: null, reason: "", error: "" });
-      await fetchOrders();
-    } catch (err) {
-      setCancelModal((prev) => ({
-        ...prev,
-        error: err?.response?.data?.message || "Failed to cancel order",
-      }));
-    } finally {
-      setCancelLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white text-slate-900">
@@ -253,6 +254,57 @@ export default function StudentDashboard({ user, onLogout }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                onClick={() => setIsNotifOpen((prev) => !prev)}
+                className="relative p-2 rounded-full border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                aria-label="Open notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] leading-4 text-center border border-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white shadow-xl z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <p className="text-sm font-semibold text-slate-900">Notifications</p>
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-sm text-slate-500">No notifications yet</div>
+                    ) : (
+                      notifications.map((item) => (
+                        <div
+                          key={item._id}
+                          className={`px-4 py-3 border-b last:border-b-0 border-slate-100 ${
+                            item.isRead ? "bg-white" : "bg-amber-50/60"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                              <Package className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-900 truncate">{item.title}</p>
+                              <p className="text-xs text-slate-600 mt-0.5">{item.message}</p>
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {new Date(item.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => startOrderFlow(cartItems)}
               disabled={!cartItems.length}
@@ -260,6 +312,12 @@ export default function StudentDashboard({ user, onLogout }) {
             >
               <ShoppingCart className="w-4 h-4" />
               Cart ({cartItems.length})
+            </button>
+            <button
+              onClick={() => navigate("/my-orders")}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm hover:bg-amber-600"
+            >
+              My Orders
             </button>
             <button
               onClick={onLogout}
@@ -364,60 +422,6 @@ export default function StudentDashboard({ user, onLogout }) {
           )}
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">My Orders & Cancellation</h2>
-            <button
-              onClick={fetchOrders}
-              className="px-3 py-2 rounded-lg bg-slate-900 text-white text-sm hover:bg-slate-800"
-            >
-              Refresh Orders
-            </button>
-          </div>
-
-          {loadingOrders ? (
-            <div className="h-24 flex items-center justify-center text-slate-500 gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading orders...
-            </div>
-          ) : orders.length === 0 ? (
-            <div className="text-sm text-slate-500">No orders found yet.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-slate-500 border-b border-slate-200">
-                    <th className="py-2">Order ID</th>
-                    <th className="py-2">Status</th>
-                    <th className="py-2">Created</th>
-                    <th className="py-2">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr key={order._id} className="border-b border-slate-100">
-                      <td className="py-3 font-medium text-slate-800">{order.orderId}</td>
-                      <td className="py-3">
-                        <span className={`px-2 py-1 rounded text-xs ${statusClass(order.status)}`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-slate-600">{new Date(order.createdAt).toLocaleString()}</td>
-                      <td className="py-3">
-                        <button
-                          onClick={() => openCancelFlow(order)}
-                          disabled={order.status !== "Pending"}
-                          className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Cancel
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
       </main>
 
       {cartFoodItems.length > 0 && (
@@ -437,72 +441,6 @@ export default function StudentDashboard({ user, onLogout }) {
             ))}
           </div>
         </aside>
-      )}
-
-      {cancelModal.open && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm p-4 flex items-center justify-center">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Cancel Order</h3>
-              <button
-                onClick={() => setCancelModal({ open: false, order: null, eligibility: null, reason: "", error: "" })}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="text-sm text-slate-600">
-                Order: <span className="font-medium text-slate-800">{cancelModal.order?.orderId}</span>
-              </div>
-
-              {!cancelModal.eligibility ? (
-                <div className="text-sm text-slate-500">Checking cancellation eligibility...</div>
-              ) : (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                  <p>
-                    Eligible: <span className="font-medium">{cancelModal.eligibility.canCancel ? "Yes" : "No"}</span>
-                  </p>
-                  <p className="text-slate-500 mt-1">{cancelModal.eligibility.message}</p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Reason</label>
-                <textarea
-                  rows={3}
-                  value={cancelModal.reason}
-                  onChange={(e) => setCancelModal((prev) => ({ ...prev, reason: e.target.value }))}
-                  placeholder="Optional cancellation reason"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50"
-                />
-              </div>
-
-              {cancelModal.error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm">
-                  {cancelModal.error}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setCancelModal({ open: false, order: null, eligibility: null, reason: "", error: "" })}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={submitCancel}
-                  disabled={!cancelModal.eligibility?.canCancel || cancelLoading}
-                  className="px-4 py-2 rounded-lg bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {cancelLoading ? "Cancelling..." : "Confirm Cancel"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       <button

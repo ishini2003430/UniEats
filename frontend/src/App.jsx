@@ -9,6 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
+import MyOrdersPage from "./pages/student/MyOrdersPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -27,6 +28,7 @@ function App() {
       return (
         <Routes>
           <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
+          <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
           <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
         </Routes>
       );
