@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
@@ -13,6 +13,22 @@ import MyOrdersPage from "./pages/student/MyOrdersPage";
 
 function App() {
   const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    try {
+      const savedUser = localStorage.getItem("unieatsUser") || sessionStorage.getItem("unieatsUser");
+      if (savedUser) {
+        setUser(JSON.parse(savedUser));
+      }
+    } catch (error) {
+      console.error("Failed to restore user session:", error);
+    }
+  }, []);
+
+  const handleLogin = (nextUser) => {
+    setUser(nextUser);
+    localStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+  };
 
   const handleLogout = () => {
     setUser(null);
@@ -38,9 +54,10 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Login onLogin={setUser} />} />
+      <Route path="/" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
-      <Route path="/admin/login" element={<AdminLogin onLogin={setUser} />} />
+      <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
+      <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
   );
 }
