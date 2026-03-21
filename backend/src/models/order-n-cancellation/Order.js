@@ -21,6 +21,12 @@ const vendorOrderSchema = new mongoose.Schema(
         required: true,
       },
     ],
+    pickupVerificationCode: {
+      type: String,
+      required: true,
+      match: /^\d{4}$/,
+      index: true,
+    },
     status: {
       type: String,
       enum: ["Pending", "Preparing", "Ready", "Completed", "Cancelled"],

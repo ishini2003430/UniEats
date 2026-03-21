@@ -9,6 +9,7 @@ const { emitToUser } = require("../../utils/socket");
 const {
   buildStudentOrderConfirmationEmail,
   buildVendorNewOrderEmail,
+  buildStudentOrderStatusUpdateEmail,
 } = require("../../utils/emailTemplates");
 
 const CANCELLATION_WINDOW_MINUTES = Number(process.env.ORDER_CANCELLATION_WINDOW_MINUTES || 10);
@@ -18,6 +19,8 @@ const isHoldActive = (slot) => {
   if (!slot.holdUntil) return true;
   return new Date(slot.holdUntil).getTime() > Date.now();
 };
+
+const generateVerificationCode = () => `${Math.floor(1000 + Math.random() * 9000)}`;
 
 const formatSlotLabel = (slot) => {
   const datePart = new Date(slot.slotDate).toISOString().slice(0, 10);
@@ -36,11 +39,138 @@ const deriveOrderStatus = (vendorOrders) => {
   return "Pending";
 };
 
+const getStudentStatusCopy = (nextStatus) => {
+  if (nextStatus === "Preparing") {
+    return {
+      notificationTitle: "Your order is preparing",
+      notificationMessage: "Your order is now being prepared by the vendor.",
+      emailSubject: "UniEats: Your order is preparing",
+      emailHeadline: "Your Order Is Preparing",
+      emailSubtitle: "The vendor has started preparing your order.",
+      emailMessage: "your order is now being prepared.",
+    };
+  }
+
+  if (nextStatus === "Ready") {
+    return {
+      notificationTitle: "Your order is ready",
+      notificationMessage: "Your order is ready for pickup.",
+      emailSubject: "UniEats: Your order is ready",
+      emailHeadline: "Your Order Is Ready",
+      emailSubtitle: "Please head to your selected pickup slot.",
+      emailMessage: "your order is ready for pickup.",
+    };
+  }
+
+  if (nextStatus === "Completed") {
+    return {
+      notificationTitle: "Thank you! Your order is completed",
+      notificationMessage: "Your order has been completed. Thank you and come again.",
+      emailSubject: "UniEats: Thank you for your order",
+      emailHeadline: "Thank You, Your Order Is Completed",
+      emailSubtitle: "Your order has been successfully handed over by the vendor.",
+      emailMessage: "your order has been completed. Thank you and come again.",
+    };
+  }
+
+  return {
+    notificationTitle: `Your order is ${nextStatus.toLowerCase()}`,
+    notificationMessage: `Your order status is now ${nextStatus}.`,
+    emailSubject: `UniEats: Your order is ${nextStatus.toLowerCase()}`,
+    emailHeadline: "Order Status Update",
+    emailSubtitle: "A vendor updated the status of your order.",
+    emailMessage: `your order status is now ${nextStatus}.`,
+  };
+};
+
+const notifyStudentOrderStatusUpdate = async ({
+  order,
+  studentId,
+  vendorId,
+  slotId,
+  foodItemIds,
+  nextStatus,
+}) => {
+  try {
+    const [studentUser, vendorUser, slot, foods] = await Promise.all([
+      User.findById(studentId).select("name email"),
+      User.findById(vendorId).select("name vendorName"),
+      slotId ? PickupSlot.findById(slotId).select("slotDate startTime endTime") : null,
+      Array.isArray(foodItemIds) && foodItemIds.length
+        ? Food.find({ _id: { $in: foodItemIds } }).select("name")
+        : [],
+    ]);
+
+    const studentLabel = studentUser?.name || "Student";
+    const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
+    const slotLabel = slot ? formatSlotLabel(slot) : "N/A";
+    const foodNames = foods.length ? foods.map((item) => item.name).join(", ") : "N/A";
+
+    const statusCopy = getStudentStatusCopy(nextStatus);
+
+    const notificationTitle = statusCopy.notificationTitle;
+    const notificationMessage = `${statusCopy.notificationMessage} (Order: ${order.orderId})`;
+
+    const createdNotification = await Notification.create({
+      recipientRole: "student",
+      recipientId: studentId,
+      vendorId,
+      studentId,
+      orderId: order._id,
+      type: "ORDER_STATUS_UPDATED",
+      title: notificationTitle,
+      message: notificationMessage,
+    });
+
+    emitToUser({
+      role: "student",
+      userId: studentId,
+      event: "notification:new",
+      payload: {
+        _id: createdNotification._id,
+        recipientRole: createdNotification.recipientRole,
+        recipientId: createdNotification.recipientId,
+        vendorId: createdNotification.vendorId,
+        studentId: createdNotification.studentId,
+        orderId: createdNotification.orderId,
+        type: createdNotification.type,
+        title: createdNotification.title,
+        message: createdNotification.message,
+        isRead: createdNotification.isRead,
+        createdAt: createdNotification.createdAt,
+        updatedAt: createdNotification.updatedAt,
+      },
+    });
+
+    const studentEmail = buildStudentOrderStatusUpdateEmail({
+      studentLabel,
+      orderId: order.orderId,
+      vendorLabel,
+      nextStatus,
+      slotLabel,
+      foodNames,
+      statusHeadline: statusCopy.emailHeadline,
+      statusSubtitle: statusCopy.emailSubtitle,
+      statusMessage: statusCopy.emailMessage,
+    });
+
+    await sendEmail({
+      to: studentUser?.email,
+      subject: `${statusCopy.emailSubject} (${order.orderId})`,
+      text: studentEmail.text,
+      html: studentEmail.html,
+    });
+  } catch (error) {
+    console.error("notifyStudentOrderStatusUpdate error:", error);
+  }
+};
+
 const toClientVendorOrders = (vendorOrders = []) =>
   vendorOrders.map((item) => ({
     vendorId: item.vendorId,
     slotId: item.slotId,
     foodItemIds: item.foodItemIds || [],
+    pickupVerificationCode: item.pickupVerificationCode,
     status: item.status,
     cancelledAt: item.cancelledAt,
     cancelReason: item.cancelReason,
@@ -412,6 +542,7 @@ exports.createOrder = async (req, res) => {
               vendorId: ctx.vendorId,
               slotId: ctx.slot._id,
               foodItemIds: ctx.foodItemIds,
+              pickupVerificationCode: generateVerificationCode(),
               status: "Pending",
             })),
             status: "Pending",
@@ -676,6 +807,10 @@ exports.updateOrderStatusByVendor = async (req, res) => {
   try {
     const { id } = req.params;
     const nextStatus = req.body && typeof req.body.status === "string" ? req.body.status.trim() : "";
+    const verificationCode =
+      req.body && typeof req.body.verificationCode === "string"
+        ? req.body.verificationCode.trim()
+        : "";
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ message: "Order id must be a valid ObjectId" });
@@ -714,8 +849,23 @@ exports.updateOrderStatusByVendor = async (req, res) => {
           return res.status(409).json({ message: "Completed order status cannot be changed" });
         }
 
+        if (nextStatus === "Completed") {
+          return res.status(422).json({
+            message: "Completion verification code is required for new orders",
+          });
+        }
+
         order.status = nextStatus;
         await order.save();
+
+        await notifyStudentOrderStatusUpdate({
+          order,
+          studentId: order.studentId,
+          vendorId: order.vendorId,
+          slotId: order.slotId,
+          foodItemIds: order.foodItemIds,
+          nextStatus,
+        });
 
         return res.json({
           message: "Order status updated successfully",
@@ -736,9 +886,32 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       return res.status(409).json({ message: "Completed order status cannot be changed" });
     }
 
+    if (nextStatus === "Completed") {
+      if (!/^\d{4}$/.test(verificationCode)) {
+        return res.status(422).json({
+          message: "verificationCode must be a 4-digit code",
+        });
+      }
+
+      if (verificationCode !== String(segment.pickupVerificationCode || "")) {
+        return res.status(422).json({
+          message: "Invalid pickup verification code",
+        });
+      }
+    }
+
     order.vendorOrders[segmentIndex].status = nextStatus;
     order.status = deriveOrderStatus(order.vendorOrders);
     await order.save();
+
+    await notifyStudentOrderStatusUpdate({
+      order,
+      studentId: order.studentId,
+      vendorId: segment.vendorId,
+      slotId: segment.slotId,
+      foodItemIds: segment.foodItemIds,
+      nextStatus,
+    });
 
     return res.json({
       message: "Order status updated successfully",

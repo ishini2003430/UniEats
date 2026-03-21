@@ -159,7 +159,74 @@ const buildVendorNewOrderEmail = ({ vendorLabel, studentLabel, orderId, slotLabe
   return { text, html };
 };
 
+const buildStudentOrderStatusUpdateEmail = ({
+  studentLabel,
+  orderId,
+  vendorLabel,
+  nextStatus,
+  slotLabel,
+  foodNames,
+  statusHeadline,
+  statusSubtitle,
+  statusMessage,
+}) => {
+  const headline = statusHeadline || "Order Status Update";
+  const subtitle = statusSubtitle || "A vendor updated the status of your order.";
+  const introMessage = statusMessage || `Your order is now ${nextStatus}.`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 12px 0;font-size:14px;line-height:1.8;color:#334155;">Hi <strong>${escapeHtml(
+      studentLabel
+    )}</strong>, ${escapeHtml(introMessage)}</p>
+
+    <div style="margin:0 0 14px 0;padding:14px;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:12px;">
+      <div style="font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:#065f46;font-weight:700;">Updated Status</div>
+      <div style="font-size:22px;font-weight:800;color:#0f172a;margin-top:4px;">${escapeHtml(nextStatus)}</div>
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;border-spacing:0 8px;">
+      <tr>
+        <td style="font-size:12px;color:#64748b;width:110px;">Order ID</td>
+        <td style="font-size:13px;color:#0f172a;font-weight:600;">${escapeHtml(orderId)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:12px;color:#64748b;">Vendor</td>
+        <td style="font-size:13px;color:#0f172a;font-weight:600;">${escapeHtml(vendorLabel)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:12px;color:#64748b;">Pickup Slot</td>
+        <td style="font-size:13px;color:#0f172a;font-weight:600;">${escapeHtml(slotLabel)}</td>
+      </tr>
+      <tr>
+        <td style="font-size:12px;color:#64748b;">Items</td>
+        <td style="font-size:13px;color:#0f172a;font-weight:600;">${escapeHtml(foodNames)}</td>
+      </tr>
+    </table>
+  `;
+
+  const text = [
+    `Hi ${studentLabel},`,
+    "",
+    `${introMessage} (Order: ${orderId})`,
+    `Vendor: ${vendorLabel}`,
+    `Pickup Slot: ${slotLabel}`,
+    `Items: ${foodNames}`,
+    "",
+    "Thank you for using UniEats.",
+  ].join("\n");
+
+  const html = buildEmailLayout({
+    preheader: `Order ${orderId} updated to ${nextStatus}`,
+    title: headline,
+    subtitle,
+    bodyHtml,
+  });
+
+  return { text, html };
+};
+
 module.exports = {
   buildStudentOrderConfirmationEmail,
   buildVendorNewOrderEmail,
+  buildStudentOrderStatusUpdateEmail,
 };

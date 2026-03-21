@@ -60,6 +60,7 @@ export default function OrdersManagementTab({ user }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusForm, setStatusForm] = useState({
     status: "Pending",
+    verificationCode: "",
   });
 
   const notificationOrderId = searchParams.get("notifyOrderId") || "";
@@ -169,7 +170,7 @@ export default function OrdersManagementTab({ user }) {
 
   const openStatusModal = (order) => {
     setSelectedOrder(order);
-    setStatusForm({ status: order.status || "Pending" });
+    setStatusForm({ status: order.status || "Pending", verificationCode: "" });
     setModalType("status");
   };
 
@@ -200,7 +201,10 @@ export default function OrdersManagementTab({ user }) {
     try {
       await api.patch(
         `/api/orders/${selectedOrder._id}/status`,
-        { status: statusForm.status },
+        {
+          status: statusForm.status,
+          verificationCode: statusForm.verificationCode,
+        },
         { headers: vendorHeaders }
       );
 
@@ -458,7 +462,7 @@ export default function OrdersManagementTab({ user }) {
             <select
               id="order-status"
               value={statusForm.status}
-              onChange={(e) => setStatusForm({ status: e.target.value })}
+              onChange={(e) => setStatusForm((prev) => ({ ...prev, status: e.target.value }))}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50"
             >
               <option value="Pending">Pending</option>
@@ -466,6 +470,31 @@ export default function OrdersManagementTab({ user }) {
               <option value="Ready">Ready</option>
               <option value="Completed">Completed</option>
             </select>
+
+            {statusForm.status === "Completed" && (
+              <div>
+                <label htmlFor="verification-code" className="block text-sm font-medium text-slate-700 mt-2 mb-1">
+                  Pickup Verification Code (4 digits)
+                </label>
+                <input
+                  id="verification-code"
+                  type="text"
+                  maxLength={4}
+                  value={statusForm.verificationCode}
+                  onChange={(e) =>
+                    setStatusForm((prev) => ({
+                      ...prev,
+                      verificationCode: e.target.value.replace(/\D/g, "").slice(0, 4),
+                    }))
+                  }
+                  placeholder="Enter student code"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-slate-50"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Ask the student for the 4-digit pickup code to complete the order.
+                </p>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button

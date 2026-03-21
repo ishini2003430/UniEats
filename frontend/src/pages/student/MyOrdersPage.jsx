@@ -11,6 +11,18 @@ const statusClass = (status) => {
   return "bg-slate-200 text-slate-700";
 };
 
+const getCodesLabel = (order) => {
+  const vendorOrders = Array.isArray(order?.vendorOrders) ? order.vendorOrders : [];
+  if (!vendorOrders.length) return "N/A";
+
+  const codes = vendorOrders
+    .map((item) => item?.pickupVerificationCode)
+    .filter(Boolean);
+
+  if (!codes.length) return "N/A";
+  return codes.join(" / ");
+};
+
 export default function MyOrdersPage({ user }) {
   const navigate = useNavigate();
 
@@ -160,6 +172,7 @@ export default function MyOrdersPage({ user }) {
                   <tr className="text-left text-slate-500 border-b border-slate-200">
                     <th className="py-2">Order ID</th>
                     <th className="py-2">Status</th>
+                    <th className="py-2">Pickup Code</th>
                     <th className="py-2">Created</th>
                     <th className="py-2">Action</th>
                   </tr>
@@ -173,6 +186,7 @@ export default function MyOrdersPage({ user }) {
                           {order.status}
                         </span>
                       </td>
+                      <td className="py-3 text-slate-800 font-semibold tracking-wide">{getCodesLabel(order)}</td>
                       <td className="py-3 text-slate-600">{new Date(order.createdAt).toLocaleString()}</td>
                       <td className="py-3">
                         <button

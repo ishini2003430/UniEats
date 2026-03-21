@@ -31,7 +31,7 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["NEW_ORDER", "ORDER_PLACED"],
+      enum: ["NEW_ORDER", "ORDER_PLACED", "ORDER_STATUS_UPDATED"],
       default: "NEW_ORDER",
     },
     title: {
