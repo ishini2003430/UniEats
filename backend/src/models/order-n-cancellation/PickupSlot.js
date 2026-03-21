@@ -27,6 +27,11 @@ const pickupSlotSchema = new mongoose.Schema(
       default: 10,
       min: 1,
     },
+    currentOrders: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     isActive: {
       type: Boolean,
       default: true,

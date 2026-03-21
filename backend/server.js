@@ -29,11 +29,15 @@ const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 const pickupSlotRoutes = require("./src/routes/order-n-cancellation/pickupSlotRoutes");
+const foodRoutes = require("./src/routes/order-n-cancellation/foodRoutes");
+const orderRoutes = require("./src/routes/order-n-cancellation/orderRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/slots", pickupSlotRoutes);
+app.use("/api/foods", foodRoutes);
+app.use("/api/orders", orderRoutes);
 
 // Test route
 app.get("/", (req, res) => {

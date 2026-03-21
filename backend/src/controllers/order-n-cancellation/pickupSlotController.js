@@ -24,6 +24,8 @@ const toClientSlot = (slot) => ({
   startTime: slot.startTime,
   endTime: slot.endTime,
   maxCapacity: slot.maxCapacity,
+  currentOrders: slot.currentOrders || 0,
+  remainingCapacity: Math.max((slot.maxCapacity || 0) - (slot.currentOrders || 0), 0),
   isActive: slot.isActive,
   isHeld: slot.isHeld,
   holdReason: slot.holdReason,
@@ -290,7 +292,7 @@ exports.listPublicSlots = async (req, res) => {
     query.$or = [{ isHeld: false }, { holdUntil: { $lte: now } }];
 
     const slots = await PickupSlot.find(query)
-      .select("vendorId slotDate startTime endTime maxCapacity isActive isHeld holdUntil")
+      .select("vendorId slotDate startTime endTime maxCapacity currentOrders isActive isHeld holdUntil")
       .sort({ slotDate: 1, startTime: 1 });
 
     return res.json(slots.map(toClientSlot));
@@ -328,7 +330,7 @@ exports.querySlots = async (req, res) => {
       query.$or = [{ isHeld: false }, { holdUntil: { $lte: now } }];
 
       const slots = await PickupSlot.find(query)
-        .select("vendorId slotDate startTime endTime maxCapacity isActive isHeld holdUntil")
+        .select("vendorId slotDate startTime endTime maxCapacity currentOrders isActive isHeld holdUntil")
         .sort({ slotDate: 1, startTime: 1 });
 
       if (id) {
