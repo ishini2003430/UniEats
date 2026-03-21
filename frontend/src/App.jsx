@@ -6,17 +6,31 @@ import Signin from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
-import VendorDashboard from "./pages/VendorDashboard";
+import VendorDashboard from "./pages/vendor/VendorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 
 function App() {
   const [user, setUser] = useState(null);
 
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("unieatsUser");
+    sessionStorage.removeItem("unieatsUser");
+  };
+
 
   if (user) {
-    if (user.role === "admin") return <AdminDashboard />;
-    if (user.role === "vendor") return <VendorDashboard />;
-    if (user.role === "student") return <StudentDashboard />;
+    if (user.role === "admin") return <AdminDashboard user={user} onLogout={handleLogout} />;
+    if (user.role === "vendor") return <VendorDashboard user={user} onLogout={handleLogout} />;
+    if (user.role === "student") {
+      return (
+        <Routes>
+          <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
+          <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
+        </Routes>
+      );
+    }
   }
 
 

@@ -340,3 +340,49 @@ exports.cancelOrder = async (req, res) => {
     await session.endSession();
   }
 };
+
+exports.updateOrderStatusByVendor = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const nextStatus = req.body && typeof req.body.status === "string" ? req.body.status.trim() : "";
+
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Order id must be a valid ObjectId" });
+    }
+
+    const allowedStatuses = ["Pending", "Preparing", "Ready", "Completed"];
+    if (!allowedStatuses.includes(nextStatus)) {
+      return res.status(400).json({
+        message: "status must be one of: Pending, Preparing, Ready, Completed",
+      });
+    }
+
+    const order = await Order.findOne({
+      _id: id,
+      vendorId: req.vendor._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.status === "Cancelled") {
+      return res.status(409).json({ message: "Cancelled order status cannot be changed" });
+    }
+
+    if (order.status === "Completed") {
+      return res.status(409).json({ message: "Completed order status cannot be changed" });
+    }
+
+    order.status = nextStatus;
+    await order.save();
+
+    return res.json({
+      message: "Order status updated successfully",
+      order: toClientOrder(order),
+    });
+  } catch (error) {
+    console.error("updateOrderStatusByVendor error:", error);
+    return res.status(500).json({ message: "Failed to update order status" });
+  }
+};
