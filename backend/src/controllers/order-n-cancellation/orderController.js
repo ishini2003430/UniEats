@@ -6,6 +6,10 @@ const User = require("../../models/User");
 const Notification = require("../../models/order-n-cancellation/Notification");
 const { sendEmail } = require("../../utils/mailer");
 const { emitToUser } = require("../../utils/socket");
+const {
+  buildStudentOrderConfirmationEmail,
+  buildVendorNewOrderEmail,
+} = require("../../utils/emailTemplates");
 
 const CANCELLATION_WINDOW_MINUTES = Number(process.env.ORDER_CANCELLATION_WINDOW_MINUTES || 10);
 
@@ -158,6 +162,13 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
       const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
       const foodNames = ctx.foods.map((item) => item.name).join(", ");
       const slotLabel = formatSlotLabel(ctx.slot);
+      const vendorEmail = buildVendorNewOrderEmail({
+        vendorLabel,
+        studentLabel,
+        orderId: order.orderId,
+        slotLabel,
+        foodNames,
+      });
 
       vendorNotificationDocs.push({
         recipientRole: "vendor",
@@ -174,16 +185,8 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         sendEmail({
           to: vendorUser?.email,
           subject: `UniEats: New order ${order.orderId}`,
-          text: [
-            `Hi ${vendorLabel},`,
-            "",
-            `You received a new order ${order.orderId}.`,
-            `Student: ${studentLabel}`,
-            `Pickup Slot: ${slotLabel}`,
-            `Items: ${foodNames}`,
-            "",
-            "Please update order status from the vendor dashboard.",
-          ].join("\n"),
+          text: vendorEmail.text,
+          html: vendorEmail.html,
         })
       );
     });
@@ -231,20 +234,19 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
       return `${index + 1}. Vendor: ${vendorLabel} | Slot: ${slotLabel} | Items: ${foodNames}`;
     });
 
+    const studentEmail = buildStudentOrderConfirmationEmail({
+      studentLabel,
+      orderId: order.orderId,
+      summaryLines,
+    });
+
     await Promise.allSettled([
       ...vendorEmailJobs,
       sendEmail({
         to: studentUser?.email,
         subject: `UniEats: Order ${order.orderId} confirmed`,
-        text: [
-          `Hi ${studentLabel},`,
-          "",
-          `Your order ${order.orderId} is confirmed.`,
-          "",
-          ...summaryLines,
-          "",
-          "Thank you for ordering with UniEats.",
-        ].join("\n"),
+        text: studentEmail.text,
+        html: studentEmail.html,
       }),
     ]);
   } catch (notifyError) {
