@@ -10,7 +10,16 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-function Sidebar({ currentView, setView, isOpen, setIsOpen }) {
+function Sidebar({ currentView, setView, isOpen, setIsOpen, onLogout, user }) {
+  const displayName = user?.name || "Admin User";
+  const displayEmail = user?.email || "admin@unieats.com";
+  const initials = (displayName || "AD")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AD";
+
   const navItems = [
     { id: "home", label: "Dashboard", icon: LayoutDashboard },
     { id: "vendors", label: "Pending Vendors", icon: Clock },
@@ -110,17 +119,18 @@ function Sidebar({ currentView, setView, isOpen, setIsOpen }) {
 
           <div className="flex items-center p-3 rounded-xl bg-slate-800/50 mt-2">
             <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-xs">
-              AD
+                {initials}
             </div>
             <div className="ml-3 flex-1 overflow-hidden">
-              <p className="text-sm font-medium text-white truncate">
-                Admin User
-              </p>
-              <p className="text-xs text-slate-500 truncate">
-                admin@unieats.com
-              </p>
+                <p className="text-sm font-medium text-white truncate">{displayName}</p>
+                <p className="text-xs text-slate-500 truncate">{displayEmail}</p>
             </div>
-            <button className="text-slate-400 hover:text-white transition-colors">
+            <button
+              onClick={onLogout}
+              className="text-slate-400 hover:text-white transition-colors"
+              title="Logout"
+              aria-label="Logout"
+            >
               <LogOut className="w-4 h-4" />
             </button>
           </div>
