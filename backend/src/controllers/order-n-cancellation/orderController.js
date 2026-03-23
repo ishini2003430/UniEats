@@ -182,19 +182,16 @@ const toClientOrder = (order, role, viewerId) => {
   if (role === "vendor") {
     if (!vendorOrders.length && order.vendorId && String(order.vendorId) === String(viewerId)) {
       return {
-        _id: order._id,
-        orderId: order.orderId,
-        studentId: order.studentId,
-        vendorId: order.vendorId,
-        slotId: order.slotId,
-        foodItemIds: order.foodItemIds || [],
-        status: order.status,
-        cancelledAt: order.cancelledAt,
-        cancelReason: order.cancelReason,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        parentOrderStatus: order.status,
-      };
+  _id: order._id,
+  orderId: order.orderId,
+  student: order.studentId,
+  vendorId: order.vendorId,
+  slot: order.slotId,
+  foods: order.foodItemIds || [],
+  status: order.status,
+  createdAt: order.createdAt,
+  updatedAt: order.updatedAt,
+};
     }
 
     const segment = vendorOrders.find((item) => String(item.vendorId) === String(viewerId));
@@ -204,19 +201,16 @@ const toClientOrder = (order, role, viewerId) => {
     }
 
     return {
-      _id: order._id,
-      orderId: order.orderId,
-      studentId: order.studentId,
-      vendorId: segment.vendorId,
-      slotId: segment.slotId,
-      foodItemIds: segment.foodItemIds || [],
-      status: segment.status,
-      cancelledAt: segment.cancelledAt,
-      cancelReason: segment.cancelReason,
-      createdAt: order.createdAt,
-      updatedAt: order.updatedAt,
-      parentOrderStatus: order.status,
-    };
+  _id: order._id,
+  orderId: order.orderId,
+  student: order.studentId,
+  vendorId: segment.vendorId,
+  slot: segment.slotId,
+  foods: segment.foodItemIds,
+  status: segment.status,
+  createdAt: order.createdAt,
+  updatedAt: order.updatedAt,
+};
   }
 
   return {
@@ -662,7 +656,11 @@ exports.queryOrders = async (req, res) => {
       query.orderId = String(orderId);
     }
 
-    const orders = await Order.find(query).sort({ createdAt: -1 });
+    const orders = await Order.find(query)
+  .populate("vendorOrders.slotId")
+  .populate("vendorOrders.foodItemIds")
+  .populate("studentId", "name email")
+  .sort({ "vendorOrders.slotId.startTime": 1 });
 
     const mapped = orders
       .map((order) => toClientOrder(order, role, userId))
@@ -803,10 +801,15 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
+const STATUS_FLOW = ["Pending", "Preparing", "Ready", "Completed"];
+
 exports.updateOrderStatusByVendor = async (req, res) => {
   try {
     const { id } = req.params;
-    const nextStatus = req.body && typeof req.body.status === "string" ? req.body.status.trim() : "";
+    const nextStatus =
+      req.body && typeof req.body.status === "string"
+        ? req.body.status.trim()
+        : "";
     const verificationCode =
       req.body && typeof req.body.verificationCode === "string"
         ? req.body.verificationCode.trim()
@@ -835,18 +838,36 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const segmentIndex = order.vendorOrders.findIndex(
-      (item) => String(item.vendorId) === String(req.vendor._id)
-    );
+    const vendorOrders = Array.isArray(order.vendorOrders) ? order.vendorOrders : [];
 
+const segmentIndex = vendorOrders.findIndex(
+  (item) => String(item.vendorId) === String(req.vendor._id)
+);
+
+    // ===============================
+    // ✅ CASE 1: NO SEGMENT (LEGACY ORDER)
+    // ===============================
     if (segmentIndex === -1) {
       if (order.vendorId && String(order.vendorId) === String(req.vendor._id)) {
+        
+        // ❌ block invalid states
         if (order.status === "Cancelled") {
           return res.status(409).json({ message: "Cancelled order status cannot be changed" });
         }
 
         if (order.status === "Completed") {
           return res.status(409).json({ message: "Completed order status cannot be changed" });
+        }
+
+        // ✅ validate flow
+        const currentStatus = order.status;
+        const currentIndex = STATUS_FLOW.indexOf(currentStatus);
+        const nextIndex = STATUS_FLOW.indexOf(nextStatus);
+
+        if (nextIndex !== currentIndex + 1) {
+          return res.status(400).json({
+            message: `Invalid status transition: ${currentStatus} → ${nextStatus}`,
+          });
         }
 
         if (nextStatus === "Completed") {
@@ -876,8 +897,12 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    const segment = order.vendorOrders[segmentIndex];
+    // ===============================
+    // ✅ CASE 2: NORMAL MULTI-VENDOR ORDER
+    // ===============================
+    const segment = vendorOrders[segmentIndex];
 
+    // ❌ block invalid states FIRST
     if (segment.status === "Cancelled") {
       return res.status(409).json({ message: "Cancelled order status cannot be changed" });
     }
@@ -886,6 +911,18 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       return res.status(409).json({ message: "Completed order status cannot be changed" });
     }
 
+    // ✅ validate flow
+    const currentStatus = segment.status;
+    const currentIndex = STATUS_FLOW.indexOf(currentStatus);
+    const nextIndex = STATUS_FLOW.indexOf(nextStatus);
+
+    if (nextIndex !== currentIndex + 1) {
+      return res.status(400).json({
+        message: `Invalid status transition: ${currentStatus} → ${nextStatus}`,
+      });
+    }
+
+    // ✅ verification check
     if (nextStatus === "Completed") {
       if (!/^\d{4}$/.test(verificationCode)) {
         return res.status(422).json({
@@ -900,8 +937,10 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       }
     }
 
+    // ✅ update segment + order
     order.vendorOrders[segmentIndex].status = nextStatus;
     order.status = deriveOrderStatus(order.vendorOrders);
+
     await order.save();
 
     await notifyStudentOrderStatusUpdate({
@@ -917,6 +956,7 @@ exports.updateOrderStatusByVendor = async (req, res) => {
       message: "Order status updated successfully",
       order: toClientOrder(order, "vendor", req.vendor._id),
     });
+
   } catch (error) {
     console.error("updateOrderStatusByVendor error:", error);
     return res.status(500).json({ message: "Failed to update order status" });
