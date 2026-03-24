@@ -10,6 +10,7 @@ import VendorDashboard from "./pages/vendor/VendorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
+import HomePage from "./pages/student/HomePage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -43,6 +44,7 @@ function App() {
     if (user.role === "student") {
       return (
         <Routes>
+          <Route path="/home" element={<HomePage user={user} />} />
           <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
           <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
           <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
