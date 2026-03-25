@@ -16,7 +16,8 @@ function App() {
 
   useEffect(() => {
     try {
-      const savedUser = localStorage.getItem("unieatsUser") || sessionStorage.getItem("unieatsUser");
+      const savedUser = sessionStorage.getItem("unieatsUser");
+
       if (savedUser) {
         setUser(JSON.parse(savedUser));
       }
@@ -25,33 +26,47 @@ function App() {
     }
   }, []);
 
-  const handleLogin = (nextUser) => {
-    setUser(nextUser);
-    localStorage.setItem("unieatsUser", JSON.stringify(nextUser));
-  };
+ const handleLogin = (nextUser) => {
+  setUser(nextUser);
+  sessionStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+};
 
   const handleLogout = () => {
-    setUser(null);
-    localStorage.removeItem("unieatsUser");
-    sessionStorage.removeItem("unieatsUser");
-  };
+  setUser(null);
+  sessionStorage.removeItem("unieatsUser");
+};
 
-
+  // =========================
+  // ✅ LOGGED USER ROUTES
+  // =========================
   if (user) {
-    if (user.role === "admin") return <AdminDashboard user={user} onLogout={handleLogout} />;
-    if (user.role === "vendor") return <VendorDashboard user={user} onLogout={handleLogout} />;
-    if (user.role === "student") {
-      return (
-        <Routes>
-          <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
-          <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-          <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
-        </Routes>
-      );
-    }
+    return (
+      <Routes>
+        {/* ADMIN */}
+        {user.role === "admin" && (
+          <Route path="*" element={<AdminDashboard user={user} onLogout={handleLogout} />} />
+        )}
+
+        {/* VENDOR */}
+        {user.role === "vendor" && (
+          <Route path="*" element={<VendorDashboard user={user} onLogout={handleLogout} />} />
+        )}
+
+        {/* STUDENT */}
+        {user.role === "student" && (
+          <>
+            <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
+            <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
+            <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
+          </>
+        )}
+      </Routes>
+    );
   }
 
-
+  // =========================
+  // ✅ NOT LOGGED ROUTES
+  // =========================
   return (
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
