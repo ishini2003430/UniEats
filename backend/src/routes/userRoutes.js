@@ -111,4 +111,15 @@ router.get("/vendors/:id", async (req, res) => {
   }
 });
 
+
+router.get("/vendors", async (req, res) => {
+  try {
+    const vendors = await User.find({ role: "vendor" }).select("-password");
+    res.json(vendors);
+  } catch (error) {
+    console.error("GET VENDORS ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;

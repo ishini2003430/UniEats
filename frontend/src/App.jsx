@@ -7,7 +7,6 @@ import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
 import HomePage from "./pages/student/HomePage";
@@ -18,10 +17,12 @@ import FoodManagement from "./pages/vendor/FoodManagement";
 function App() {
   const [user, setUser] = useState(null);
 
+  // =========================
+  // 🔄 Restore session
+  // =========================
   useEffect(() => {
     try {
       const savedUser = sessionStorage.getItem("unieatsUser");
-
       if (savedUser) {
         setUser(JSON.parse(savedUser));
       }
@@ -30,77 +31,108 @@ function App() {
     }
   }, []);
 
- const handleLogin = (nextUser) => {
-  setUser(nextUser);
-  sessionStorage.setItem("unieatsUser", JSON.stringify(nextUser));
-};
-
-  const handleLogout = () => {
-  setUser(null);
-  sessionStorage.removeItem("unieatsUser");
-};
+  // =========================
+  // 🔐 Login
+  // =========================
+  const handleLogin = (nextUser) => {
+    setUser(nextUser);
+    sessionStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+  };
 
   // =========================
-  // ✅ LOGGED USER ROUTES
+  // 🚪 Logout
+  // =========================
+  const handleLogout = () => {
+    setUser(null);
+    sessionStorage.removeItem("unieatsUser");
+  };
+
+  // =========================
+  // ✅ AUTHENTICATED ROUTES
   // =========================
   if (user) {
-
     return (
       <Routes>
-        {/* ADMIN */}
+
+        {/* ================= ADMIN ================= */}
         {user.role === "admin" && (
-          <Route path="*" element={<AdminDashboard user={user} onLogout={handleLogout} />} />
+          <Route
+            path="*"
+            element={<AdminDashboard user={user} onLogout={handleLogout} />}
+          />
         )}
 
-        {/* VENDOR */}
+        {/* ================= VENDOR ================= */}
         {user.role === "vendor" && (
-          <Route path="*" element={<VendorDashboard user={user} onLogout={handleLogout} />} />
-        )}
-
-        {/* STUDENT */}
-        {user.role === "student" && (
           <>
-            <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
-            <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-            <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
+            <Route
+              path="/dashboard"
+              element={<VendorDashboard user={user} onLogout={handleLogout} />}
+            />
+            <Route
+              path="/food-management"
+              element={<FoodManagement user={user} />}
+            />
+            <Route
+              path="*"
+              element={<VendorDashboard user={user} onLogout={handleLogout} />}
+            />
           </>
         )}
+
+        {/* ================= STUDENT ================= */}
+        {user.role === "student" && (
+          <>
+            {/* Default page */}
+            <Route
+              path="/"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+
+            <Route
+              path="/home"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+
+            <Route
+              path="/vendor-list"
+              element={<VendorList />}
+            />
+
+            <Route
+              path="/vendor/:vendorId"
+              element={<VendorMenu user={user} onLogout={handleLogout} />}
+            />
+
+            <Route
+              path="/student/order"
+              element={<StudentOrderProcessPage user={user} />}
+            />
+
+            <Route
+              path="/my-orders"
+              element={<MyOrdersPage user={user} />}
+            />
+
+            {/* fallback */}
+            <Route
+              path="*"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+          </>
+        )}
+
       </Routes>
     );
-
-    if (user.role === "admin") return <AdminDashboard user={user} onLogout={handleLogout} />;
-
-    if (user.role === "vendor") {
-      return (
-        <Routes>
-          <Route path="/food-management" element={<FoodManagement user={user} />} />
-          <Route path="*" element={<Navigate to="/food-management" replace />} />
-        </Routes>
-      );
-    }
-
-    if (user.role === "student") {
-      return (
-        <Routes>
-          <Route path="/home" element={<HomePage user={user} onLogout={handleLogout} />} />
-          <Route path="/vendor-list" element={<VendorList />} />
-          <Route path="/vendor/:vendorId" element={<VendorMenu user={user} onLogout={handleLogout} />} />
-          <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
-          <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-          <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
-        </Routes>
-      );
-    }
-
   }
 
   // =========================
-  // ✅ NOT LOGGED ROUTES
+  // ❌ NOT LOGGED IN ROUTES
   // =========================
   return (
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
-      <Route path="/register" element={<Signin onLogin={handleLogin} />} />
+      <Route path="/register" element={<Signin />} />
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
