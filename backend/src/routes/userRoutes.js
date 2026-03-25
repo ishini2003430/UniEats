@@ -81,6 +81,13 @@ router.post(
           role === "vendor"
             ? "Vendor registration submitted. Waiting for admin approval."
             : "Student registered successfully. You can now login.",
+        user: role === "student" ? {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status
+        } : null
       });
     } catch (error) {
       console.error("REGISTER ERROR:", error);
@@ -90,5 +97,18 @@ router.post(
     }
   }
 );
+
+router.get("/vendors/:id", async (req, res) => {
+  try {
+    const vendor = await User.findOne({ _id: req.params.id, role: "vendor" }).select("-password");
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+    return res.json(vendor);
+  } catch (error) {
+    console.error("GET VENDOR ERROR:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
 
 module.exports = router;

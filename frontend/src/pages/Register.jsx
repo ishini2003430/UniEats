@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-function Register() {
+function Register({ onLogin }) {
+  const navigate = useNavigate();
   const [role, setRole] = useState("student");
 
   const [name, setName] = useState("");
@@ -55,25 +56,34 @@ function Register() {
         formData.append("vendorLogo", vendorLogo);
       }
 
-      await api.post("/api/users/register", formData, {
+      const res = await api.post("/api/users/register", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setSuccess(
-        role === "vendor"
-          ? "Vendor registration submitted. Waiting for admin approval."
-          : "Registration successful. You can now login."
-      );
+      if (role === "student" && res.data.user && onLogin) {
+        setSuccess("Registration successful! Logging you in...");
+        
+        setTimeout(() => {
+          onLogin(res.data.user);
+          navigate("/home");
+        }, 1500);
+      } else {
+        setSuccess(
+          role === "vendor"
+            ? "Vendor registration submitted. Waiting for admin approval."
+            : "Registration successful. You can now login."
+        );
 
-      // Reset form
-      setName("");
-      setEmail("");
-      setPassword("");
-      setVendorName("");
-      setVendorPhone("");
-      setVendorLocation("");
-      setVendorLogo(null);
-      setRole("student");
+        // Reset form
+        setName("");
+        setEmail("");
+        setPassword("");
+        setVendorName("");
+        setVendorPhone("");
+        setVendorLocation("");
+        setVendorLogo(null);
+        setRole("student");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {

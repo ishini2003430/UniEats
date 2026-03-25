@@ -10,6 +10,10 @@ import VendorDashboard from "./pages/vendor/VendorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
+import HomePage from "./pages/student/HomePage";
+import VendorList from "./pages/student/VendorList";
+import VendorMenu from "./pages/student/VendorMenu";
+import FoodManagement from "./pages/vendor/FoodManagement";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -39,10 +43,22 @@ function App() {
 
   if (user) {
     if (user.role === "admin") return <AdminDashboard user={user} onLogout={handleLogout} />;
-    if (user.role === "vendor") return <VendorDashboard user={user} onLogout={handleLogout} />;
+
+    if (user.role === "vendor") {
+      return (
+        <Routes>
+          <Route path="/food-management" element={<FoodManagement user={user} />} />
+          <Route path="*" element={<Navigate to="/food-management" replace />} />
+        </Routes>
+      );
+    }
+
     if (user.role === "student") {
       return (
         <Routes>
+          <Route path="/home" element={<HomePage user={user} onLogout={handleLogout} />} />
+          <Route path="/vendor-list" element={<VendorList />} />
+          <Route path="/vendor/:vendorId" element={<VendorMenu user={user} onLogout={handleLogout} />} />
           <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
           <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
           <Route path="*" element={<StudentDashboard user={user} onLogout={handleLogout} />} />
@@ -55,7 +71,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
-      <Route path="/register" element={<Signin />} />
+      <Route path="/register" element={<Signin onLogin={handleLogin} />} />
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
