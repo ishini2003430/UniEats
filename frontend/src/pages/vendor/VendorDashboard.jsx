@@ -11,6 +11,7 @@ import VendorSidebar from "./components/VendorSidebar";
 import { orderSubTabs } from "./common/configs/tabs";
 import DashboardOverviewTab from "./common/subtabs/DashboardOverviewTab";
 import OrdersTabContent from "./common/subtabs/OrdersTabContent";
+import FoodManagement from "./FoodManagement";
 import api from "../../services/api";
 import { connectRealtime, disconnectRealtime } from "../../services/realtime";
 
@@ -244,6 +245,9 @@ function VendorDashboard({ user, onLogout }) {
   const renderLayoutPanel = () => {
     if (activeTab === "dashboard") {
       return <DashboardOverviewTab />;
+    }
+    if (activeTab === "menu") {
+      return <FoodManagement user={user} />;
     }
 
     return <OrdersTabContent activeOrderSubTab={activeOrderSubTab} user={user} />;

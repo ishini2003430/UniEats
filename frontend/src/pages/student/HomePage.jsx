@@ -1,8 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import heroImage from "../../assets/image1.jpg";
+import Header from "../../components/Header";
+import Footer from "../../components/Footer";
 
-export default function HomePage({ user }) {
+export default function HomePage({ user, onLogout }) {
   const navigate = useNavigate();
 
   const studentName = user?.name || "Student";
@@ -12,13 +14,16 @@ export default function HomePage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white">
+      <Header user={user} onLogout={onLogout} />
+      
       {/* Hero Section */}
       <section
-        className="relative w-full h-screen bg-cover bg-center flex items-center justify-center"
+        className="relative w-full h-[calc(100vh-73px)] bg-cover flex items-center justify-center"
         style={{
           backgroundImage: `url('${heroImage}')`,
           backgroundAttachment: "fixed",
+          backgroundPosition: "center top 73px",
         }}
       >
         {/* Overlay */}
@@ -72,6 +77,8 @@ export default function HomePage({ user }) {
           </div>
         </div>
       </section>
+      
+      <Footer />
     </div>
   );
 }

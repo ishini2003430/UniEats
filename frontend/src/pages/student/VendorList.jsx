@@ -3,27 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, Star } from 'lucide-react';
 import heroImage from '../../assets/image1.jpg';
-import heroImage2 from '../../assets/image2.jpg';
 import VendorCard from '../vendor/components/VendorCard';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 
+import api from '../../services/api';
+
 export default function VendorList({ user, onLogout }) {
     const navigate = useNavigate();
-    // Mock vendors data
-    const vendors = [
-        { id: '1', name: 'The Food Base', isOpen: true, imageUrl: heroImage },
-        { id: '2', name: 'Healthy Campus Bytes', isOpen: false },
-        { id: '3', name: 'Spice & Rice', isOpen: true },
-        { id: '4', name: 'Student Cafe', isOpen: true },
-        { id: '5', name: 'Fresh Juice Center', isOpen: false },
-        { id: '6', name: 'Midnight Bites', isOpen: true }
-    ];
+    const [vendors, setVendors] = React.useState([]);
+
+    React.useEffect(() => {
+        const fetchVendors = async () => {
+            try {
+                const activeRes = await api.get('/api/admin/vendors/active');
+                const pendingRes = await api.get('/api/admin/vendors/pending');
+                setVendors([...activeRes.data, ...pendingRes.data]);
+            } catch (err) {
+                console.error("Failed to fetch vendors", err);
+            }
+        };
+        fetchVendors();
+    }, []);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             <Header user={user} onLogout={onLogout} />
-            
+
             {/* Animated Hero Section */}
             <section className="relative w-full bg-gradient-to-br from-amber-400 via-orange-400 to-orange-500 overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32 lg:pt-32 lg:pb-40">
 
@@ -141,7 +147,7 @@ export default function VendorList({ user, onLogout }) {
                         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
                     >
                         {vendors.map((vendor) => (
-                            <VendorCard key={vendor.id} vendor={vendor} />
+                            <VendorCard key={vendor._id} vendor={vendor} />
                         ))}
                     </motion.div>
                 ) : (
@@ -162,7 +168,7 @@ export default function VendorList({ user, onLogout }) {
                     {vendors.length >= 3 && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                             {vendors.slice(0, 3).map((vendor) => (
-                                <VendorCard key={`popular-${vendor.id}`} vendor={vendor} />
+                                <VendorCard key={`popular-${vendor._id}`} vendor={vendor} />
                             ))}
                         </div>
                     )}

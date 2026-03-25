@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Store, ChevronRight } from 'lucide-react';
+import image1 from '../../../assets/image1.jpg';
 
 export default function VendorCard({ vendor }) {
   const navigate = useNavigate();
@@ -10,9 +11,16 @@ export default function VendorCard({ vendor }) {
   if (!vendor) return null;
 
   const vendorId = vendor._id || vendor.id;
-  const vendorName = vendor.name || 'Unknown Vendor';
-  const vendorImage = vendor.image || vendor.imageUrl || 'https://via.placeholder.com/300x200?text=Vendor';
-  const isOpen = vendor.isOpen || vendor.status === 'open' || vendor.status === 'active';
+  const vendorName = vendor.vendorName || vendor.name || 'Unknown Vendor';
+  const vendorImage = vendor.vendorLogo 
+    ? `http://localhost:5000/uploads/${vendor.vendorLogo}`
+    : image1;
+  
+  const isActive = vendor.status === 'active';
+  const isPending = vendor.status === 'pending';
+  
+  // Mocked open/close status for now
+  const isOpen = vendor.isOpen !== undefined ? vendor.isOpen : true;
 
   const handleDragStart = (e) => {
     // Prevent image dragging to allow clean clicks
@@ -41,25 +49,39 @@ export default function VendorCard({ vendor }) {
           </div>
         )}
         
-        {/* Status Badge */}
+        {/* Open/Closed Badge */}
         <div className="absolute top-3 right-3 flex items-center">
           <span
             className={`px-3 py-1 text-xs font-bold rounded-full shadow-sm backdrop-blur-md border ${
               isOpen
-                ? 'bg-emerald-500/90 text-white border-emerald-400/50'
-                : 'bg-rose-500/90 text-white border-rose-400/50'
+                ? 'bg-blue-500/90 text-white border-blue-400/50'
+                : 'bg-red-500/90 text-white border-red-400/50'
             }`}
           >
             {isOpen ? 'Open Now' : 'Closed'}
           </span>
         </div>
+
       </div>
 
       {/* Vendor Details */}
       <div className="p-5 flex flex-col flex-grow">
-        <h3 className="text-xl font-bold text-slate-900 mb-2 truncate" title={vendorName}>
-          {vendorName}
-        </h3>
+        <div className="flex items-center justify-between mb-2 gap-2">
+          <h3 className="text-xl font-bold text-slate-900 truncate" title={vendorName}>
+            {vendorName}
+          </h3>
+          
+          {/* Active/Pending Status Badge */}
+          <span
+            className={`px-2 py-1 text-[10px] uppercase tracking-wide font-bold rounded-md whitespace-nowrap flex-shrink-0 ${
+              isActive
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-amber-100 text-amber-700'
+            }`}
+          >
+            {isActive ? 'Active' : isPending ? 'Pending' : 'Not Active'}
+          </span>
+        </div>
         
         <div className="mt-auto pt-4 flex items-center justify-between border-t border-slate-100">
           <div className="flex items-center gap-1.5 text-slate-500 text-sm">

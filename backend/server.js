@@ -42,15 +42,15 @@ const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 const pickupSlotRoutes = require("./src/routes/order-n-cancellation/pickupSlotRoutes");
-const foodRoutes = require("./src/routes/order-n-cancellation/foodRoutes");
 const orderRoutes = require("./src/routes/order-n-cancellation/orderRoutes");
 const notificationRoutes = require("./src/routes/order-n-cancellation/notificationRoutes");
+const foodRoutes = require("./src/routes/FoodManagement/foodRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/slots", pickupSlotRoutes);
-app.use("/api/foods", foodRoutes);
+app.use("/api/Foods", foodRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/notifications", notificationRoutes);
 
@@ -63,7 +63,7 @@ app.get("/", (req, res) => {
 const connectWithRetry = async (retries = 3, delayMs = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-  
+
       await mongoose.connect(process.env.MONGO_URL);
 
       console.log("MongoDB connected successfully");

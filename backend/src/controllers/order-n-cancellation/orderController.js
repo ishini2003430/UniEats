@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Order = require("../../models/order-n-cancellation/Order");
-const Food = require("../../models/order-n-cancellation/Food");
+const Food = require("../../models/FoodManagement/Food");
 const PickupSlot = require("../../models/order-n-cancellation/PickupSlot");
 const User = require("../../models/User");
 const Notification = require("../../models/order-n-cancellation/Notification");
