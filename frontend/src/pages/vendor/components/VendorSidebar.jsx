@@ -83,6 +83,33 @@ export default function VendorSidebar({
 
         <button
           className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group relative ${
+            activeTab === "menu"
+              ? "bg-slate-800 text-white font-medium"
+              : "hover:bg-slate-800/50 hover:text-white"
+          }`}
+          onClick={() => {
+            setTabInUrl("menu");
+            if (window.innerWidth < 1024) setIsSidebarOpen(false);
+          }}
+        >
+          {activeTab === "menu" && (
+            <motion.div
+              layoutId="vendorActiveNav"
+              className="absolute left-0 w-1 h-6 bg-amber-500 rounded-r-full"
+            />
+          )}
+          <UtensilsCrossed
+            className={`w-5 h-5 ${
+              activeTab === "menu"
+                ? "text-amber-500"
+                : "text-slate-400 group-hover:text-amber-500/80"
+            }`}
+          />
+          <span>Menu</span>
+        </button>
+
+        <button
+          className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group relative ${
             activeTab === "orders"
               ? "bg-slate-800 text-white font-medium"
               : "hover:bg-slate-800/50 hover:text-white"
