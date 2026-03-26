@@ -5,16 +5,12 @@ import Header from '../../src/components/Header';
 import Footer from '../../src/components/Footer';
 
 const ReviewsPage = () => {
-  // --- NEW PROFILE STATE ---
   const [profile, setProfile] = useState(null);
-  
   const [reviews, setReviews] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
+  
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [formData, setFormData] = useState({ 
@@ -28,46 +24,48 @@ const ReviewsPage = () => {
   // Get basic user info from localStorage
   const user = JSON.parse(localStorage.getItem('user')) || { 
     name: "Alex Johnson", 
-    email: "ishinidewmini713@gmail.com" 
+    email: "student@sliit.lk" 
   };
 
   const ratingLabels = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very Good', 5: 'Great' };
 
-  // --- UPDATED EFFECTS ---
   useEffect(() => {
-    fetchProfile(); // Fetch full profile for the Header
+    fetchProfile();
     fetchVendors();
     fetchReviews();
-    
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeTab]);
 
-  // --- NEW PROFILE FETCH FUNCTION ---
   const fetchProfile = async () => {
     try {
-      // Use the email from localStorage to fetch full profile details
       const response = await axios.get(`http://localhost:5000/api/profile/fetch/${user.email}`);
       setProfile(response.data);
     } catch (err) {
-      console.error("Failed to fetch profile for header", err);
-      // Fallback to localStorage data if API fails
       setProfile(user);
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
+
+
+
+  
+  const fetchVendors = async () => {
+    try {
+      // Adjusted path to match your Auth Route for vendors
+      const response = await axios.get('http://localhost:5000/api/users/vendors'); 
+      const formattedVendors = response.data.map(v => ({
+        _id: v._id,
+        name: v.vendorName || v.name 
+      }));
+      setVendors(formattedVendors);
+    } catch (err) {
+      console.error("Failed to fetch vendors from DB, using fallbacks", err);
+      setVendors([
+        { _id: "v1", name: "Campus Grill (Offline)" },
+        { _id: "v2", name: "Basement Canteen (Offline)" }
+      ]);
+    }
   };
 
-  // --- LOGIC FUNCTIONS (Unchanged) ---
   const fetchReviews = async () => {
     try {
       setLoading(true);
@@ -83,19 +81,10 @@ const ReviewsPage = () => {
     }
   };
 
-  const fetchVendors = async () => {
-    try {
-      const response = await axios.get('http://localhost:5000/api/vendors');
-      setVendors(response.data);
-    } catch (err) {
-      setVendors([
-        { _id: "v1", name: "Campus Grill" },
-        { _id: "v2", name: "New Building canteen" },
-        { _id: "v3", name: "Basement Canteen" },
-        { _id: "v4", name: "Anohana Canteen" },
-        { _id: "v5", name: "Fingles" }
-      ]);
-    }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
   };
 
   const getVendorName = (vendorId, savedName) => {
@@ -106,7 +95,15 @@ const ReviewsPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (rating === 0) return alert("Please select a rating");
-    const reviewData = { ...formData, rating, userEmail: user.email, userName: user.name, date: new Date().toISOString() };
+    
+    const reviewData = { 
+      ...formData, 
+      rating, 
+      userEmail: user.email, 
+      userName: profile?.name || user.name, 
+      date: new Date().toISOString() 
+    };
+
     try {
       if (editingId) {
         await axios.put(`http://localhost:5000/api/reviews/update/${editingId}`, reviewData);
@@ -124,7 +121,12 @@ const ReviewsPage = () => {
 
   const handleEdit = (review) => {
     setEditingId(review._id);
-    setFormData({ vendorName: review.vendorName, vendorId: review.vendorId, mealName: review.mealName, comment: review.comment });
+    setFormData({ 
+      vendorName: review.vendorName, 
+      vendorId: review.vendorId, 
+      mealName: review.mealName, 
+      comment: review.comment 
+    });
     setRating(review.rating);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -167,10 +169,8 @@ const ReviewsPage = () => {
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] pb-20 font-sans text-gray-800">
-      {/* --- FIXED HEADER PROP --- */}
       <Header profile={profile} onLogout={handleLogout} />
 
-      {/* --- REST OF THE UI --- */}
       <div className="max-w-4xl mx-auto pt-12 px-6 text-center">
         <h1 className="text-3xl font-extrabold flex items-center justify-center gap-3">
           <span className="text-orange-500 text-2xl">☆</span> Rate Meals & Vendors
@@ -186,17 +186,9 @@ const ReviewsPage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={avgRatings}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="vendorName" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fontSize: 10, fontWeight: 700}} 
-                />
+                <XAxis dataKey="vendorName" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
                 <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                <Tooltip 
-                  cursor={{fill: '#FFF7ED'}}
-                  contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
-                />
+                <Tooltip cursor={{fill: '#FFF7ED'}} contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}} />
                 <Bar dataKey="average" radius={[10, 10, 0, 0]} barSize={40}>
                   {avgRatings.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.average >= 4 ? '#f97316' : '#fdba74'} />
@@ -204,33 +196,6 @@ const ReviewsPage = () => {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Top Vendor Ratings Grid */}
-        <div className="mb-10">
-          <h2 className="text-lg font-bold mb-4">Top Vendor Ratings</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {avgRatings.length > 0 ? (
-              avgRatings.map((vendor) => (
-                <div key={vendor.vendorId} className="bg-white p-5 rounded-xl shadow-md">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold">{vendor.vendorName}</h3>
-                    <span className="text-xs text-gray-400">{vendor.count} reviews</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i} className="text-orange-500">
-                        {i < Math.round(vendor.average) ? "★" : "☆"}
-                      </span>
-                    ))}
-                    <span className="text-orange-500 font-bold ml-1">{vendor.average}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-300">No ratings yet</p>
-            )}
           </div>
         </div>
 
@@ -244,16 +209,21 @@ const ReviewsPage = () => {
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Vendor</label>
                 <select 
-                  value={formData.vendorName}
+                  value={formData.vendorId} 
                   onChange={(e) => {
-                    const selectedVendor = vendors.find(v => v.name === e.target.value);
-                    setFormData({ ...formData, vendorName: e.target.value, vendorId: selectedVendor?._id || "" });
+                    const selectedId = e.target.value;
+                    const selectedVendor = vendors.find(v => v._id === selectedId);
+                    setFormData({ 
+                      ...formData, 
+                      vendorId: selectedId, 
+                      vendorName: selectedVendor?.name || "" 
+                    });
                   }}
                   className="w-full p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 font-semibold text-sm outline-none focus:bg-white focus:border-orange-200 transition-all"
                   required
                 >
                   <option value="">Select vendor...</option>
-                  {vendors.map(v => <option key={v._id} value={v.name}>{v.name}</option>)}
+                  {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
                 </select>
               </div>
               <div>
@@ -268,6 +238,8 @@ const ReviewsPage = () => {
                 />
               </div>
             </div>
+            
+            {/* Rating Stars */}
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Rating</label>
               <div className="flex items-center gap-1">
@@ -284,6 +256,7 @@ const ReviewsPage = () => {
                 <span className="ml-3 text-[10px] font-bold text-gray-300 uppercase">{ratingLabels[hover || rating] || 'Select Rating'}</span>
               </div>
             </div>
+
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Your Review</label>
               <textarea 
@@ -296,7 +269,7 @@ const ReviewsPage = () => {
               />
             </div>
             <div className="flex justify-end">
-                <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg shadow-orange-100 transition-all flex items-center gap-2 active:scale-95 text-[11px] uppercase tracking-widest">
+                <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2 active:scale-95 text-[11px] uppercase tracking-widest">
                   <span className="text-sm">🚀</span> {editingId ? "Update Review" : "Submit Review"}
                 </button>
             </div>
@@ -317,7 +290,7 @@ const ReviewsPage = () => {
               <div key={review._id} className="bg-white p-6 rounded-3xl border border-gray-50 shadow-sm transition hover:shadow-md group relative">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 font-bold text-[10px] border border-orange-100 uppercase">
-                    {review.userName?.substring(0, 2)}
+                    {(review.userName || "U").substring(0, 2)}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">

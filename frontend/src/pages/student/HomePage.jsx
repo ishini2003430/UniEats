@@ -15,7 +15,7 @@ export default function HomePage({ user, onLogout }) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white">
-      <Header user={user} onLogout={onLogout} />
+      <Header profile={user} onLogout={onLogout} />
       
       {/* Hero Section */}
       <section
