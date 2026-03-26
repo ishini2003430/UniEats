@@ -10,7 +10,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import VendorDashboard from "./pages/Vendor/VendorDashboard";
 
 import StudentProfile from "./pages/StudentProfile";
-import RatingsPage from "./pages/RatingsPage";
+import ReviewsPage from "./pages/ReviewsPage";
 
 
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
@@ -131,9 +131,7 @@ function App() {
               path="*"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-        <Route path="/" element={<Login onLogin={handleLogin} />} />
-      <Route path="/register" element={<Signin />} />
-             <Route path="/login" element={<Login onLogin={setUser} />} />
+           
           </>
         )}
 
@@ -148,14 +146,19 @@ function App() {
   return (
     <Routes>
      
-
+<Route path="/" element={<Login onLogin={handleLogin} />} />
+            <Route path="/register" element={<Signin />} />
+             <Route path="/login" element={<Login onLogin={setUser} />} />
      
-      <Route path="/admin/login" element={<AdminLogin onLogin={setUser} />} />
-       <Route path="/ratings" element={<RatingsPage />} />
-       <Route path="/profile" element={<StudentProfile />} />
+                <Route path="/profile" element={<StudentProfile />} />
+             <Route path="/reviews" element={<ReviewsPage />} />
+           <Route path="/admin/login" element={<AdminLogin onLogin={setUser} />} />
+       
+       
 
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
+
 
     </Routes>
   );

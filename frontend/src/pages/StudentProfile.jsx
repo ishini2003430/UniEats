@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import Header from '../../src/components/Header';
+import Footer from '../../src/components/Footer';
 
 const ProfilePage = () => {
   const [profile, setProfile] = useState(null);
@@ -10,11 +12,9 @@ const ProfilePage = () => {
   
   const fileInputRef = useRef(null);
   const historyRef = useRef(null);
-  const dropdownRef = useRef(null); 
   
   const [profileImage, setProfileImage] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const dietaryOptions = ['Vegetarian', 'Vegan', 'Halal', 'Gluten-Free', 'Kosher', 'Dairy-Free'];
 
@@ -23,16 +23,6 @@ const ProfilePage = () => {
     { id: 2, date: 'Mar 20, 2026', desc: 'Iced Coffee redemption', pts: '-150', type: 'redeem' },
     { id: 3, date: 'Mar 18, 2026', desc: 'Rice & Curry - Main Hall', pts: '+30', type: 'earn' },
   ];
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -132,7 +122,7 @@ const ProfilePage = () => {
     window.location.href = "/login";
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen text-orange-600 font-bold tracking-widest uppercase">Loading UniEats...</div>;
+  if (loading) return <div className="flex justify-center items-center h-screen text-orange-600 font-bold tracking-widest uppercase italic animate-pulse">Loading UniEats...</div>;
   if (error) return <div className="text-red-500 text-center mt-10 font-bold">{error}</div>;
 
   const currentPoints = profile.loyaltyPoints || 0;
@@ -140,63 +130,20 @@ const ProfilePage = () => {
   const progressWidth = Math.min((currentPoints / nextMilestone) * 100, 100);
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB]">
+    <div className="min-h-screen bg-[#FDFCFB] flex flex-col">
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
 
-      {/* Header / Navbar */}
-      <nav className="flex justify-between items-center px-10 py-4 bg-white border-b border-gray-100 relative z-50">
-        <div className="flex items-center gap-2">
-          <div className="bg-orange-500 p-1.5 rounded-lg text-white text-xl">🍴</div>
-          <span className="text-2xl font-bold text-[#E65100]">UniEats</span>
-        </div>
-        
-        <div className="relative" ref={dropdownRef}>
-          <button 
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-10 h-10 bg-orange-50 rounded-full border border-orange-100 flex items-center justify-center text-orange-600 font-bold text-xs hover:bg-orange-100 transition-all shadow-sm"
-          >
-            {profile.name.split(' ').map(n => n[0]).join('')}
-          </button>
+      {/* REPLACED MANUAL NAV WITH MODERN HEADER COMPONENT */}
+      <Header profile={profile} onLogout={handleLogout} />
 
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200">
-              <div className="px-5 py-4 border-b border-gray-50">
-                <p className="text-sm font-bold text-gray-800">{profile.name}</p>
-                <p className="text-[11px] text-gray-400 truncate">{profile.email}</p>
-              </div>
-              <div className="py-2">
-                <button  onClick={() => window.location.href = "/profile"}
-                className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors">
-                  <span>👤</span> Profile
-                </button>
-                <button 
-        onClick={() => window.location.href = "/ratings"} 
-        className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-      >
-        <span className="text-base text-orange-500">☆</span> Reviews
-      </button>
-                <button className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors">
-                  <span>🛍️</span> Orders
-                </button>
-              </div>
-              <div className="pt-2 border-t border-gray-50">
-                <button 
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <span>↪️</span> Log out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-10 py-10">
+      <main className="flex-grow max-w-7xl mx-auto px-6 sm:px-10 py-10 w-full">
         {/* Profile Banner */}
         <div className="bg-[#FFF8F3] rounded-[2rem] p-10 flex flex-col md:flex-row items-center justify-between mb-10 border border-orange-50/50 shadow-sm">
           <div className="flex items-center gap-8">
-            <div className="w-28 h-28 bg-orange-500 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl ring-8 ring-white overflow-hidden">
+            <div 
+              onClick={handleImageClick}
+              className={`w-28 h-28 bg-orange-500 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-xl ring-8 ring-white overflow-hidden ${isEditing ? 'cursor-pointer hover:opacity-80' : ''}`}
+            >
               {profileImage ? (
                 <img src={profileImage} alt="profile" className="w-full h-full object-cover" />
               ) : (
@@ -217,7 +164,7 @@ const ProfilePage = () => {
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg shadow-orange-200"
               >
-                <span>✏️</span> Edit Profile
+                ✏️ Edit Profile
               </button>
               <button onClick={handleDeleteAccount} className="p-3 border border-red-100 text-red-400 rounded-xl hover:bg-red-100 hover:text-red-600 transition-all duration-200 active:scale-95">
                 🗑️
@@ -228,17 +175,6 @@ const ProfilePage = () => {
 
         {isEditing ? (
           <div className="space-y-8 animate-in fade-in duration-300">
-             {/* Photo Edit Card */}
-             <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-6">
-                <div onClick={handleImageClick} className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-500 text-2xl font-bold border border-orange-100 cursor-pointer overflow-hidden hover:opacity-80 transition">
-                   {profileImage ? <img src={profileImage} alt="preview" className="w-full h-full object-cover" /> : profile.name?.substring(0, 2).toUpperCase()}
-                </div>
-                <div>
-                   <h3 className="text-xl font-bold text-gray-800">Profile Photo</h3>
-                   <p className="text-gray-400 font-medium">Click the avatar to upload a new photo</p>
-                </div>
-             </div>
-
              {/* Personal Info Edit Card */}
              <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm">
                 <h2 className="text-xl font-bold text-gray-800 mb-10">Personal Information</h2>
@@ -247,7 +183,6 @@ const ProfilePage = () => {
                    <EditInput label="Email" value={formData.email} disabled />
                    <EditInput label="Phone" name="contactNumber" value={formData.contactNumber} onChange={handleInputChange} />
                    <EditInput label="Department" name="department" value={formData.department} onChange={handleInputChange} />
-                   <EditInput label="Student ID" value={profile.email?.split('@')[0]} disabled />
                 </div>
              </div>
 
@@ -302,7 +237,6 @@ const ProfilePage = () => {
               </div>
 
               <div className="bg-[#FFF8F3] p-10 rounded-[2rem] border border-orange-100 shadow-sm text-gray-800 flex flex-col justify-between relative overflow-hidden h-full">
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-orange-200/20 rounded-full blur-3xl"></div>
                 <div className="flex justify-between items-start relative z-10">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -311,8 +245,8 @@ const ProfilePage = () => {
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400/80">Loyalty Points</p>
                   </div>
-                  <button onClick={toggleHistory} className="bg-white/80 backdrop-blur-sm p-2 rounded-lg border border-orange-100 hover:bg-orange-500 hover:text-white transition-all duration-300 shadow-sm group">
-                    <span className="text-sm font-bold px-1 group-hover:scale-110 block">📜</span>
+                  <button onClick={toggleHistory} className="bg-white/80 backdrop-blur-sm p-2 rounded-lg border border-orange-100 hover:bg-orange-500 hover:text-white transition-all duration-300 shadow-sm">
+                    📜
                   </button>
                 </div>
                 <div className="my-6 flex items-baseline gap-2">
@@ -340,66 +274,66 @@ const ProfilePage = () => {
               </div>
             </div>
 
+            {/* Dietary Preferences View Card */}
             <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm">
-              <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
-                <span className="text-orange-500">🍃</span> Dietary Preferences
-              </h2>
-              <div className="flex flex-wrap gap-3">
-                {profile.dietaryPreferences?.length > 0 ? (
-                  profile.dietaryPreferences.map((pref, i) => (
-                    <span key={i} className="px-6 py-2.5 bg-orange-50 text-orange-700 text-sm font-bold rounded-full border border-orange-100 shadow-sm uppercase tracking-wide">
-                      {pref}
-                    </span>
-                  ))
-                ) : (
-                  <span className="px-6 py-2.5 bg-orange-50 text-orange-700 text-sm font-bold rounded-full border border-orange-100 shadow-sm uppercase tracking-wide">Standard</span>
-                )}
-              </div>
-              {profile.allergies && (
-                 <div className="mt-8 pt-8 border-t border-gray-50">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Allergies / Special Notes</p>
-                    <p className="text-gray-700 font-bold text-lg">{profile.allergies}</p>
-                 </div>
-              )}
+               <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                 <span className="text-orange-500">🍃</span> Dietary Preferences
+               </h2>
+               <div className="flex flex-wrap gap-3">
+                 {profile.dietaryPreferences?.length > 0 ? (
+                   profile.dietaryPreferences.map((pref, i) => (
+                     <span key={i} className="px-6 py-2.5 bg-orange-50 text-orange-700 text-sm font-bold rounded-full border border-orange-100 shadow-sm uppercase tracking-wide">
+                       {pref}
+                     </span>
+                   ))
+                 ) : (
+                   <span className="px-6 py-2.5 bg-orange-50 text-orange-700 text-sm font-bold rounded-full border border-orange-100 shadow-sm uppercase tracking-wide">Standard</span>
+                 )}
+               </div>
             </div>
 
+            {/* History Table */}
             {showHistory && (
               <div ref={historyRef} className="bg-white p-10 rounded-[2rem] border border-orange-100 shadow-md animate-in fade-in slide-in-from-bottom-5 duration-500">
-                <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-xl font-bold text-gray-800 tracking-tight">Recent Activity</h2>
-                  <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-orange-500 font-bold text-sm transition">Close ×</button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="border-b border-gray-50">
-                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
-                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Description</th>
-                        <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Points</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {pointsHistory.map((item) => (
-                        <tr key={item.id} className="group hover:bg-orange-50/30 transition-colors">
-                          <td className="py-5 text-sm font-bold text-gray-400">{item.date}</td>
-                          <td className="py-5 text-sm font-extrabold text-gray-700">{item.desc}</td>
-                          <td className={`py-5 text-sm font-black text-right ${item.type === 'earn' ? 'text-green-500' : 'text-red-400'}`}>
-                            {item.pts}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                 <div className="flex justify-between items-center mb-8">
+                   <h2 className="text-xl font-bold text-gray-800 tracking-tight">Recent Activity</h2>
+                   <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-orange-500 font-bold text-sm transition">Close ×</button>
+                 </div>
+                 <div className="overflow-x-auto">
+                   <table className="w-full text-left">
+                     <thead>
+                       <tr className="border-b border-gray-50">
+                         <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Date</th>
+                         <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Description</th>
+                         <th className="pb-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Points</th>
+                       </tr>
+                     </thead>
+                     <tbody className="divide-y divide-gray-50">
+                       {pointsHistory.map((item) => (
+                         <tr key={item.id} className="group hover:bg-orange-50/30 transition-colors">
+                           <td className="py-5 text-sm font-bold text-gray-400">{item.date}</td>
+                           <td className="py-5 text-sm font-extrabold text-gray-700">{item.desc}</td>
+                           <td className={`py-5 text-sm font-black text-right ${item.type === 'earn' ? 'text-green-500' : 'text-red-400'}`}>
+                             {item.pts}
+                           </td>
+                         </tr>
+                       ))}
+                     </tbody>
+                   </table>
+                 </div>
               </div>
             )}
           </div>
         )}
-      </div>
+      </main>
+
+      {/* INCLUDED FOOTER COMPONENT */}
+      <Footer />
     </div>
   );
 };
 
+// Helper Components
 const DisplayItem = ({ icon, label, value, iconBg, iconColor }) => (
   <div className="flex items-center gap-6">
     <div className={`w-14 h-14 ${iconBg} ${iconColor} rounded-2xl flex items-center justify-center text-2xl shadow-sm`}>
