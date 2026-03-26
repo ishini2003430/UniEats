@@ -16,9 +16,8 @@ export default function VendorList({ user, onLogout }) {
     React.useEffect(() => {
         const fetchVendors = async () => {
             try {
-                const activeRes = await api.get('/api/admin/vendors/active');
-                const pendingRes = await api.get('/api/admin/vendors/pending');
-                setVendors([...activeRes.data, ...pendingRes.data]);
+                const res = await api.get('/api/users/vendors'); // create this
+                setVendors(res.data);
             } catch (err) {
                 console.error("Failed to fetch vendors", err);
             }
@@ -67,7 +66,10 @@ export default function VendorList({ user, onLogout }) {
                             </p>
 
                             <motion.button
-                                onClick={() => navigate('/vendor-list')}
+                                onClick={() => {document
+                                    .getElementById("vendors-section")
+                                    ?.scrollIntoView({ behavior: "smooth" });
+                                }}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-slate-900 text-white font-bold text-lg shadow-xl hover:bg-slate-800 hover:shadow-2xl transition-all duration-300 group"
@@ -133,7 +135,10 @@ export default function VendorList({ user, onLogout }) {
             </section>
 
             {/* Main Content Area: Responsive Vendor Grid */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
+            <main
+                id="vendors-section"
+                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full"
+            >
                 <div className="mb-10 text-center sm:text-left">
                     <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Our Campus Vendors</h2>
                     <p className="text-slate-500 mt-2 text-lg">Pick a restaurant and explore their delicious menus.</p>
