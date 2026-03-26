@@ -6,13 +6,20 @@ import Signin from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
-import VendorDashboard from "./pages/vendor/VendorDashboard";
+
+import VendorDashboard from "./pages/Vendor/VendorDashboard";
+import StudentDashboard from "./pages/StudentDashboard";
+import StudentProfile from "./pages/StudentProfile";
+import RatingsPage from "./pages/RatingsPage";
+
+import VendorDashboard from "./pages/VendorDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
 import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
 import FoodManagement from "./pages/vendor/FoodManagement";
+
 
 function App() {
   const [user, setUser] = useState(null);
@@ -51,6 +58,11 @@ function App() {
   // ✅ AUTHENTICATED ROUTES
   // =========================
   if (user) {
+
+    if (user.role === "admin") return <AdminDashboard />;
+    if (user.role === "vendor") return <VendorDashboard />;
+    if (user.role === "student") return <StudentProfile />;
+
     return (
       <Routes>
 
@@ -71,7 +83,7 @@ function App() {
             />
             <Route
               path="/food-management"
-              element={<FoodManagement user={user} />}
+              element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />}
             />
             <Route
               path="*"
@@ -124,6 +136,7 @@ function App() {
 
       </Routes>
     );
+
   }
 
   // =========================
@@ -133,8 +146,15 @@ function App() {
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
+
+      <Route path="/login" element={<Login onLogin={setUser} />} />
+      <Route path="/admin/login" element={<AdminLogin onLogin={setUser} />} />
+       <Route path="/ratings" element={<RatingsPage />} />
+       <Route path="/profile" element={<StudentProfile />} />
+
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
+
     </Routes>
   );
 }
