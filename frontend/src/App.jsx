@@ -47,8 +47,8 @@ function App() {
     if (user.role === "vendor") {
       return (
         <Routes>
-          <Route path="/food-management" element={<FoodManagement user={user} />} />
-          <Route path="*" element={<Navigate to="/food-management" replace />} />
+          <Route path="/food-management" element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />} />
+          <Route path="*" element={<VendorDashboard user={user} onLogout={handleLogout} />} />
         </Routes>
       );
     }

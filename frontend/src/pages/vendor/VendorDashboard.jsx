@@ -6,7 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import VendorSidebar from "./components/VendorSidebar";
 import { orderSubTabs } from "./common/configs/tabs";
 import DashboardOverviewTab from "./common/subtabs/DashboardOverviewTab";
@@ -15,8 +15,9 @@ import FoodManagement from "./FoodManagement";
 import api from "../../services/api";
 import { connectRealtime, disconnectRealtime } from "../../services/realtime";
 
-function VendorDashboard({ user, onLogout }) {
+function VendorDashboard({ user, onLogout, forceTab }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -25,7 +26,7 @@ function VendorDashboard({ user, onLogout }) {
   const seenNotificationIdsRef = useRef(new Set());
 
   const currentTabParam = searchParams.get("tab");
-  const activeTab = currentTabParam === "orders" ? "orders" : "dashboard";
+  const activeTab = forceTab || (currentTabParam === "orders" ? "orders" : "dashboard");
 
   const currentOrderSubTabParam = searchParams.get("ordersTab");
   const isValidOrderSubTab = orderSubTabs.some((tab) => tab.id === currentOrderSubTabParam);
@@ -34,29 +35,20 @@ function VendorDashboard({ user, onLogout }) {
     : orderSubTabs[0].id;
 
   const setTabInUrl = (tabId) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("tab", tabId);
-
-    if (tabId === "orders") {
-      if (!next.get("ordersTab")) {
-        next.set("ordersTab", orderSubTabs[0].id);
-      }
+    if (tabId === "menu") {
+      navigate("/food-management");
     } else {
-      next.delete("ordersTab");
+      navigate(`/?tab=${tabId}`);
     }
-
-    setSearchParams(next);
   };
 
   const setOrderSubTabInUrl = (subTabId) => {
-    const next = new URLSearchParams(searchParams);
-    next.set("tab", "orders");
-    next.set("ordersTab", subTabId);
-    setSearchParams(next);
+    navigate(`/?tab=orders&ordersTab=${subTabId}`);
   };
 
   const pageTitle = useMemo(() => {
     if (activeTab === "orders") return "Orders";
+    if (activeTab === "menu") return "Food Management";
     return "Dashboard";
   }, [activeTab]);
 
@@ -168,13 +160,11 @@ function VendorDashboard({ user, onLogout }) {
 
     setIsNotifOpen(false);
 
-    const next = new URLSearchParams(searchParams);
-    next.set("tab", "orders");
-    next.set("ordersTab", "orders-management");
     if (notification.orderId) {
-      next.set("notifyOrderId", String(notification.orderId));
+      navigate(`/?tab=orders&ordersTab=orders-management&notifyOrderId=${notification.orderId}`);
+    } else {
+      navigate(`/?tab=orders&ordersTab=orders-management`);
     }
-    setSearchParams(next);
 
     if (!notification.isRead) {
       await markSingleNotificationRead(notification._id);
