@@ -7,12 +7,12 @@ import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
 
-import VendorDashboard from "./pages/VendorDashboard";
+import VendorDashboard from "./pages/Vendor/VendorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
 import RatingsPage from "./pages/RatingsPage";
 
-import VendorDashboard from "./pages/vendor/VendorDashboard";
+import VendorDashboard from "./pages/VendorDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
 import HomePage from "./pages/student/HomePage";
