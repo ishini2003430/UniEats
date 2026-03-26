@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Added useNavigate for redirection
 import api from "../services/api";
 
 function Login({ onLogin }) {
@@ -9,6 +9,7 @@ function Login({ onLogin }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate(); // Initialize navigate
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,7 +31,15 @@ function Login({ onLogin }) {
         return;
       }
 
+      // ✅ ADDED THIS LINE: Save user data to localStorage so Profile can fetch it
+      localStorage.setItem("user", JSON.stringify(res.data));
+
       onLogin(res.data);
+
+      // Redirect student to profile after successful login
+      if (res.data.role === "student") {
+        navigate("/profile");
+      }
     } catch (err) {
       setError(
         err.response?.data?.message || "Invalid email or password"
