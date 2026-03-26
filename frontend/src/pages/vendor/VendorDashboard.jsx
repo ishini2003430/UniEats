@@ -35,11 +35,7 @@ function VendorDashboard({ user, onLogout, forceTab }) {
     : orderSubTabs[0].id;
 
   const setTabInUrl = (tabId) => {
-    if (tabId === "menu") {
-      navigate("/food-management");
-    } else {
-      navigate(`/?tab=${tabId}`);
-    }
+    navigate(`/?tab=${tabId}`);
   };
 
   const setOrderSubTabInUrl = (subTabId) => {

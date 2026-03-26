@@ -71,7 +71,7 @@ function App() {
             />
             <Route
               path="/food-management"
-              element={<FoodManagement user={user} />}
+              element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />}
             />
             <Route
               path="*"
