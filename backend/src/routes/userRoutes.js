@@ -104,13 +104,14 @@ router.get("/vendors/:id", async (req, res) => {
 });
 
 
-router.get("/vendors", async (req, res) => {
+router.get('/vendors', async (req, res) => {
   try {
-    const vendors = await User.find({ role: "vendor" }).select("-password");
+    // Find all users where role is 'vendor'
+    // Select only the fields you need for the dropdown
+    const vendors = await User.find({ role: 'vendor' }).select('_id vendorName name');
     res.json(vendors);
-  } catch (error) {
-    console.error("GET VENDORS ERROR:", error);
-    res.status(500).json({ message: "Server error" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error fetching vendors" });
   }
 });
 
