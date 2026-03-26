@@ -94,9 +94,9 @@ function App() {
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
 
-            <Route
-              path="/vendor-list"
-              element={<VendorList />}
+           <Route
+            path="/vendor-list"
+            element={<VendorList user={user} onLogout={handleLogout} />}
             />
 
             <Route

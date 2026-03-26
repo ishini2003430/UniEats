@@ -26,7 +26,9 @@ export default function Header({ user, onLogout }) {
           </div>
           <div>
             <p className="text-xs text-slate-500">Signed in as</p>
-            <p className="font-semibold text-slate-900">{user?.name || "Student"}</p>
+            <p className="font-semibold text-slate-900">
+  {user?.name ? user.name : "⚠️ No Name Found"}
+</p>
           </div>
         </div>
 
