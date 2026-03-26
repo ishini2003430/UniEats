@@ -170,7 +170,7 @@ const ProfilePage = () => {
                   <span>👤</span> Profile
                 </button>
                 <button 
-        onClick={() => window.location.href = "/ratings"} // Change this to your actual route path
+        onClick={() => window.location.href = "/ratings"} 
         className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors"
       >
         <span className="text-base text-orange-500">☆</span> Reviews
