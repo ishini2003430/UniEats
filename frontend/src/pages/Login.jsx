@@ -36,10 +36,14 @@ function Login({ onLogin }) {
 
       onLogin(res.data);
 
-      // Redirect student to profile after successful login
-      if (res.data.role === "student") {
-        navigate("/profile");
-      }
+      // Redirect after login
+if (res.data.role === "student") {
+  navigate("/home");
+} else if (res.data.role === "vendor") {
+  navigate("/dashboard");
+} else if (res.data.role === "admin") {
+  navigate("/");
+}
     } catch (err) {
       setError(
         err.response?.data?.message || "Invalid email or password"

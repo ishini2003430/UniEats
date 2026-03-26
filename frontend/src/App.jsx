@@ -6,20 +6,16 @@ import Signin from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
-
 import VendorDashboard from "./pages/Vendor/VendorDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
+
 import StudentProfile from "./pages/StudentProfile";
 import RatingsPage from "./pages/RatingsPage";
 
-import VendorDashboard from "./pages/VendorDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
 import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
-import FoodManagement from "./pages/vendor/FoodManagement";
-
 
 function App() {
   const [user, setUser] = useState(null);
@@ -58,11 +54,6 @@ function App() {
   // ✅ AUTHENTICATED ROUTES
   // =========================
   if (user) {
-
-    if (user.role === "admin") return <AdminDashboard />;
-    if (user.role === "vendor") return <VendorDashboard />;
-    if (user.role === "student") return <StudentProfile />;
-
     return (
       <Routes>
 
@@ -83,7 +74,13 @@ function App() {
             />
             <Route
               path="/food-management"
-              element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />}
+              element={
+                <VendorDashboard
+                  user={user}
+                  onLogout={handleLogout}
+                  forceTab="menu"
+                />
+              }
             />
             <Route
               path="*"
@@ -95,38 +92,49 @@ function App() {
         {/* ================= STUDENT ================= */}
         {user.role === "student" && (
           <>
-            {/* Default page */}
+            {/* Home */}
             <Route
               path="/"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-
             <Route
               path="/home"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
 
-           <Route
-            path="/vendor-list"
-            element={<VendorList user={user} onLogout={handleLogout} />}
+            {/* Profile */}
+            <Route
+              path="/profile"
+              element={<StudentProfile user={user} onLogout={handleLogout} />}
             />
 
+            {/* Vendors */}
+            <Route
+              path="/vendor-list"
+              element={<VendorList user={user} onLogout={handleLogout} />}
+            />
             <Route
               path="/vendor/:vendorId"
               element={<VendorMenu user={user} onLogout={handleLogout} />}
             />
 
+            {/* Orders */}
             <Route
               path="/student/order"
               element={<StudentOrderProcessPage user={user} />}
             />
-
             <Route
               path="/my-orders"
               element={<MyOrdersPage user={user} />}
             />
 
-            {/* fallback */}
+            {/* Ratings (optional) */}
+            <Route
+              path="/ratings"
+              element={<RatingsPage user={user} />}
+            />
+
+            {/* Fallback */}
             <Route
               path="*"
               element={<HomePage user={user} onLogout={handleLogout} />}
@@ -136,7 +144,6 @@ function App() {
 
       </Routes>
     );
-
   }
 
   // =========================
@@ -145,16 +152,12 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
-
-      <Route path="/login" element={<Login onLogin={setUser} />} />
-      <Route path="/admin/login" element={<AdminLogin onLogin={setUser} />} />
-       <Route path="/ratings" element={<RatingsPage />} />
-       <Route path="/profile" element={<StudentProfile />} />
-
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
-      <Route path="*" element={<Login onLogin={handleLogin} />} />
 
+      {/* fallback */}
+      <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
   );
 }

@@ -26,7 +26,10 @@ export default function Header({ user, onLogout }) {
           </div>
           <div>
             <p className="text-xs text-slate-500">Signed in as</p>
-            <p className="font-semibold text-slate-900">
+            <p
+  onClick={() => navigate("/profile")}
+  className="font-semibold text-slate-900 cursor-pointer hover:text-amber-500 transition"
+>
   {user?.name ? user.name : "⚠️ No Name Found"}
 </p>
           </div>

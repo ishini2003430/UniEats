@@ -12,7 +12,7 @@ const initSocket = (ioInstance) => {
     });
 
     socket.on("disconnect", () => {
-      // no-op
+      console.log("A user disconnected from Socket.IO");
     });
   });
 };
