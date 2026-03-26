@@ -8,6 +8,7 @@ function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
 
   // Vendor-only fields
   const [vendorName, setVendorName] = useState("");
@@ -20,67 +21,84 @@ function Register() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
+  e.preventDefault();
+  setError("");
+  setSuccess("");
 
-    // Basic validation
-    if (!name || !email || !password) {
-      setError("Please fill in all required fields");
-      return;
-    }
+  // Basic validation
+  if (!name || !email || !password) {
+    setError("Please fill in all required fields");
+    return;
+  }
 
-    // Vendor validation
-    if (
-      role === "vendor" &&
-      (!vendorName || !vendorPhone || !vendorLocation || !vendorLogo)
-    ) {
-      setError("Please fill in all vendor details including logo");
-      return;
-    }
+  // Vendor validation
+  if (
+    role === "vendor" &&
+    (!vendorName || !vendorPhone || !vendorLocation || !vendorLogo)
+  ) {
+    setError("Please fill in all vendor details including logo");
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
+  try {
+    if (role === "student") {
+      // ✅ Student registration
+      await api.post("/api/users/register/student", {
+        name,
+        email,
+        password,
+        contactNumber,
+      });
+
+      setSuccess("Registration successful. Fetching profile...");
+
+      // ✅ Fetch the student profile immediately
+      const encodedEmail = encodeURIComponent(email);
+      const profileRes = await api.get(`/api/profile/fetch/${encodedEmail}`);
+
+      console.log("Fetched student profile:", profileRes.data);
+      // You can now store it in a global state or redirect to profile page
+      // Example: onLogin(profileRes.data);
+
+    } else {
+      // ✅ Vendor registration
       const formData = new FormData();
       formData.append("name", name);
       formData.append("email", email);
       formData.append("password", password);
-      formData.append("role", role);
+      formData.append("contactNumber", contactNumber);
+      formData.append("vendorName", vendorName);
+      formData.append("vendorPhone", vendorPhone);
+      formData.append("vendorLocation", vendorLocation);
+      formData.append("vendorLogo", vendorLogo);
 
-      if (role === "vendor") {
-        formData.append("vendorName", vendorName);
-        formData.append("vendorPhone", vendorPhone);
-        formData.append("vendorLocation", vendorLocation);
-        formData.append("vendorLogo", vendorLogo);
-      }
-
-      await api.post("/api/users/register", formData, {
+      await api.post("/api/users/register/vendor", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       setSuccess(
-        role === "vendor"
-          ? "Vendor registration submitted. Waiting for admin approval."
-          : "Registration successful. You can now login."
+        "Vendor registration submitted. Waiting for admin approval."
       );
-
-      // Reset form
-      setName("");
-      setEmail("");
-      setPassword("");
-      setVendorName("");
-      setVendorPhone("");
-      setVendorLocation("");
-      setVendorLogo(null);
-      setRole("student");
-    } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
-    } finally {
-      setLoading(false);
     }
-  };
 
+    // Reset form
+    setName("");
+    setEmail("");
+    setPassword("");
+    setContactNumber("");
+    setVendorName("");
+    setVendorPhone("");
+    setVendorLocation("");
+    setVendorLogo(null);
+    setRole("student");
+  } catch (err) {
+    setError(err.response?.data?.message || "Registration failed");
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <div className="min-h-screen flex items-center justify-center 
       bg-gradient-to-br from-blue-700 via-blue-600 to-red-600 px-4">
@@ -142,7 +160,7 @@ function Register() {
 
           <input
             type="email"
-            placeholder="Email address"
+            placeholder="University Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
@@ -153,6 +171,14 @@ function Register() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
+          />
+
+          <input
+            type="tel"
+            placeholder="Contact Number"
+            value={contactNumber}
+            onChange={(e) => setContactNumber(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
           />
 
