@@ -52,9 +52,24 @@ function App() {
         {/* VENDOR ROUTES */}
         {user.role === "vendor" && (
           <>
+
             <Route path="/dashboard" element={<VendorDashboard user={user} onLogout={handleLogout} />} />
             <Route path="/food-management" element={<FoodManagement user={user} />} />
             <Route path="*" element={<VendorDashboard user={user} onLogout={handleLogout} />} />
+
+            <Route
+              path="/dashboard"
+              element={<VendorDashboard user={user} onLogout={handleLogout} />}
+            />
+            <Route
+              path="/food-management"
+              element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />}
+            />
+            <Route
+              path="*"
+              element={<VendorDashboard user={user} onLogout={handleLogout} />}
+            />
+
           </>
         )}
 

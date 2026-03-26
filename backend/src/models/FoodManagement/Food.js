@@ -17,6 +17,11 @@ const FoodSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    originalPrice: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     category: {
       type: String,
       trim: true,
