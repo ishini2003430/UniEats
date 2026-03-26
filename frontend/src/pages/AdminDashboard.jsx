@@ -8,9 +8,16 @@ import ManageActiveVendors from "./ManageActiveVendors";
 import ManageStudents from "./ManageStudents";
 import AllActivities from "./AllActivities"; // ✅ NEW IMPORT
 
-function AdminDashboard() {
+function AdminDashboard({ onLogout, user }) {
   const [view, setView] = useState("home");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const adminInitials = (user?.name || "Admin")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "AD";
 
   const renderContent = () => {
     switch (view) {
@@ -39,6 +46,8 @@ function AdminDashboard() {
         setView={setView}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        onLogout={onLogout}
+        user={user}
       />
 
       {/* Main Content */}
@@ -87,7 +96,7 @@ function AdminDashboard() {
 
             {/* Admin Avatar */}
             <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white font-bold text-xs ring-2 ring-offset-2 ring-amber-500/20 cursor-pointer">
-              AD
+              {adminInitials}
             </div>
           </div>
         </header>

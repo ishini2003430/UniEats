@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-function Register() {
+function Register({ onLogin }) {
+  const navigate = useNavigate();
   const [role, setRole] = useState("student");
 
   const [name, setName] = useState("");
@@ -20,7 +21,9 @@ function Register() {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+ // ...existing code...
+
+const handleSubmit = async (e) => {
   e.preventDefault();
   setError("");
   setSuccess("");
@@ -44,7 +47,7 @@ function Register() {
 
   try {
     if (role === "student") {
-      // ✅ Student registration
+      // Student registration
       await api.post("/api/users/register/student", {
         name,
         email,
@@ -54,16 +57,18 @@ function Register() {
 
       setSuccess("Registration successful. Fetching profile...");
 
-      // ✅ Fetch the student profile immediately
+      // Fetch the student profile immediately
       const encodedEmail = encodeURIComponent(email);
       const profileRes = await api.get(`/api/profile/fetch/${encodedEmail}`);
 
       console.log("Fetched student profile:", profileRes.data);
-      // You can now store it in a global state or redirect to profile page
-      // Example: onLogin(profileRes.data);
-
+      // Store in global state or redirect (e.g., onLogin(profileRes.data))
+      if (onLogin) {
+        onLogin(profileRes.data);
+      }
+      navigate("/home");
     } else {
-      // ✅ Vendor registration
+      // Vendor registration
       const formData = new FormData();
       formData.append("name", name);
       formData.append("email", email);
@@ -78,21 +83,19 @@ function Register() {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setSuccess(
-        "Vendor registration submitted. Waiting for admin approval."
-      );
-    }
+      setSuccess("Vendor registration submitted. Waiting for admin approval.");
 
-    // Reset form
-    setName("");
-    setEmail("");
-    setPassword("");
-    setContactNumber("");
-    setVendorName("");
-    setVendorPhone("");
-    setVendorLocation("");
-    setVendorLogo(null);
-    setRole("student");
+      // Reset form on success
+      setName("");
+      setEmail("");
+      setPassword("");
+      setContactNumber("");
+      setVendorName("");
+      setVendorPhone("");
+      setVendorLocation("");
+      setVendorLogo(null);
+      setRole("student");
+    }
   } catch (err) {
     setError(err.response?.data?.message || "Registration failed");
   } finally {

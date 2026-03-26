@@ -3,13 +3,29 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const path = require("path");
+
 const profileRoutes = require("./src/routes/ProfileRoutes"); // ✅ ADD THIS
+
+const http = require("http");
+const { Server } = require("socket.io");
+const { initSocket } = require("./src/utils/socket");
+
 
 // Load environment variables
 dotenv.config({ quiet: true });
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    methods: ["GET", "POST"],
+  },
+});
+
+initSocket(io);
 
 // ✅ Middleware (ORDER MATTERS)
 app.use(cors());
@@ -29,13 +45,27 @@ if (!process.env.MONGO_URL) {
 const authRoutes = require("./src/routes/authRoutes");
 const userRoutes = require("./src/routes/userRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
+
 const reviewRoutes = require('./src/routes/reviewRoutes'); // ✅ ADD THIS
+
+const pickupSlotRoutes = require("./src/routes/order-n-cancellation/pickupSlotRoutes");
+const orderRoutes = require("./src/routes/order-n-cancellation/orderRoutes");
+const notificationRoutes = require("./src/routes/order-n-cancellation/notificationRoutes");
+const foodRoutes = require("./src/routes/FoodManagement/foodRoutes");
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
+
 app.use("/api/profile", profileRoutes); // ✅ ADD THIS
 app.use("/api/reviews", reviewRoutes); // ✅ ADD THIS
+
+app.use("/api/slots", pickupSlotRoutes);
+app.use("/api/foods", foodRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/notifications", notificationRoutes);
+
 
 // Test route
 app.get("/", (req, res) => {
@@ -46,11 +76,11 @@ app.get("/", (req, res) => {
 const connectWithRetry = async (retries = 3, delayMs = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-  
+
       await mongoose.connect(process.env.MONGO_URL);
 
       console.log("MongoDB connected successfully");
-      app.listen(PORT, () => {
+      server.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
       });
       return;

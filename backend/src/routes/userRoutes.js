@@ -90,5 +90,29 @@ router.post("/register/vendor", upload.single("vendorLogo"), async (req, res) =>
 });
 
 
+router.get("/vendors/:id", async (req, res) => {
+  try {
+    const vendor = await User.findOne({ _id: req.params.id, role: "vendor" }).select("-password");
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+    return res.json(vendor);
+  } catch (error) {
+    console.error("GET VENDOR ERROR:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+router.get("/vendors", async (req, res) => {
+  try {
+    const vendors = await User.find({ role: "vendor" }).select("-password");
+    res.json(vendors);
+  } catch (error) {
+    console.error("GET VENDORS ERROR:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
 
