@@ -22,6 +22,7 @@ export default function FoodManagement({ user }) {
     originalPrice: ''
   });
   
+  const [imageFile, setImageFile] = useState(null);
   const [editingId, setEditingId] = useState(null);
 
   const vendorHeaders = {
@@ -56,6 +57,7 @@ export default function FoodManagement({ user }) {
 
   const openAddModal = () => {
     setEditingId(null);
+    setImageFile(null);
     setFormData({
       name: '',
       description: '',
@@ -70,6 +72,7 @@ export default function FoodManagement({ user }) {
 
   const openEditModal = (food) => {
     setEditingId(food._id);
+    setImageFile(null);
     setFormData({
       name: food.name,
       description: food.description || '',
@@ -85,22 +88,32 @@ export default function FoodManagement({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const payload = {
-      ...formData,
-      price: Number(formData.price) || 0,
-      quantity: Number(formData.quantity) || 0,
-      originalPrice: formData.originalPrice ? Number(formData.originalPrice) : null,
-    };
+    const formDataToSend = new FormData();
+    formDataToSend.append("name", formData.name);
+    formDataToSend.append("description", formData.description);
+    formDataToSend.append("price", Number(formData.price) || 0);
+    formDataToSend.append("category", formData.category);
+    formDataToSend.append("quantity", Number(formData.quantity) || 0);
+    
+    if (formData.originalPrice) {
+      formDataToSend.append("originalPrice", Number(formData.originalPrice));
+    }
+
+    if (imageFile) {
+      formDataToSend.append("image", imageFile);
+    } else if (formData.imageUrl) {
+      formDataToSend.append("imageUrl", formData.imageUrl);
+    }
 
     try {
       if (editingId) {
-        const res = await api.put(`/api/foods/${editingId}`, payload, {
-          headers: vendorHeaders
+        const res = await api.put(`/api/foods/${editingId}`, formDataToSend, {
+          headers: { ...vendorHeaders, "Content-Type": "multipart/form-data" }
         });
         setFoods(prev => prev.map(f => f._id === editingId ? res.data : f));
       } else {
-        const res = await api.post('/api/foods/create', payload, {
-          headers: vendorHeaders
+        const res = await api.post('/api/foods/create', formDataToSend, {
+          headers: { ...vendorHeaders, "Content-Type": "multipart/form-data" }
         });
         setFoods(prev => [res.data, ...prev]);
       }
@@ -187,7 +200,7 @@ export default function FoodManagement({ user }) {
                 {/* Image Placeholder */}
                 <div className="h-48 bg-slate-100 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
                   {food.image ? (
-                    <img src={food.image} alt={food.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={food.image.startsWith('/uploads') ? `${api.defaults.baseURL}${food.image}` : food.image} alt={food.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="text-slate-400 flex flex-col items-center">
                       <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
@@ -214,9 +227,9 @@ export default function FoodManagement({ user }) {
                       <div className="font-extrabold text-amber-600 whitespace-nowrap">
                         Rs. {food.price.toFixed(2)}
                       </div>
-                      {food.originalPrice > food.price && (
+                      {food.promotionPercentage > 0 && (
                         <div className="text-xs text-slate-400 line-through">
-                          Rs. {food.originalPrice.toFixed(2)}
+                          Rs. {food.originalPrice ? food.originalPrice.toFixed(2) : (food.price / (1 - food.promotionPercentage / 100)).toFixed(2)}
                         </div>
                       )}
                     </div>
@@ -374,15 +387,20 @@ export default function FoodManagement({ user }) {
                     </div>
 
                     <div className="col-span-1 md:col-span-2">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Image URL</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Food Image (Upload from device)</label>
                       <input 
-                        type="url"
-                        name="imageUrl"
-                        value={formData.imageUrl}
-                        onChange={handleInputChange}
-                        placeholder="https://example.com/image.jpg"
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setImageFile(e.target.files[0]);
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 transition-all font-medium"
                       />
+                      {formData.imageUrl && !imageFile && (
+                        <p className="mt-2 text-xs text-slate-500">Current image will be kept if no new file is selected.</p>
+                      )}
                     </div>
 
                   </div>
