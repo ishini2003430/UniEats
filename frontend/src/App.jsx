@@ -9,7 +9,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import VendorDashboard from "./pages/Vendor/VendorDashboard";
 
 
-import StudentProfile from "./pages/StudentProfile";
+
 import RatingsPage from "./pages/RatingsPage";
 
 

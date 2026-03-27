@@ -11,40 +11,53 @@ function Login({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
+  /* ---------------- VALIDATIONS ---------------- */
+  const validateEmail = (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const validatePassword = (password) =>
+    password.length >= 6;
+
+  /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    if (!email || !password) {
-      setError("Please fill in all fields");
-      return;
+    // BASIC VALIDATION
+    if (!email.trim()) return setError("Email is required");
+    if (!password.trim()) return setError("Password is required");
+
+    if (!validateEmail(email)) {
+      return setError("Invalid email format");
+    }
+
+    if (!validatePassword(password)) {
+      return setError("Password must be at least 6 characters");
     }
 
     setLoading(true);
+
     try {
       const res = await api.post("/api/auth/login", { email, password });
 
+      // ROLE CHECK
       if (res.data.role !== role) {
         setError(`This account is not registered as a ${role}`);
         setLoading(false);
         return;
       }
 
+      // SAVE USER
       localStorage.setItem("user", JSON.stringify(res.data));
-      onLogin(res.data);
+      onLogin?.(res.data);
 
-
-      // Redirect after login
-if (res.data.role === "student") {
-  navigate("/home");
-} else if (res.data.role === "vendor") {
-  navigate("/dashboard");
-} else if (res.data.role === "admin") {
-  navigate("/");
-}
-
+      // REDIRECT (cleaned - no duplicates)
       if (res.data.role === "student") {
         navigate("/home");
+      } else if (res.data.role === "vendor") {
+        navigate("/dashboard");
+      } else if (res.data.role === "admin") {
+        navigate("/");
       }
 
     } catch (err) {
@@ -75,7 +88,6 @@ if (res.data.role === "student") {
       {/* FORM CARD */}
       <div className="bg-white/80 backdrop-blur-md w-full max-w-sm rounded-2xl shadow-xl border border-orange-100 p-6">
 
-        {/* Header */}
         <h2 className="text-xl font-bold text-center text-gray-800 capitalize">
           {role} Login
         </h2>
@@ -83,14 +95,14 @@ if (res.data.role === "student") {
           Sign in with your university email
         </p>
 
-        {/* Error */}
+        {/* ERROR */}
         {error && (
           <p className="mt-3 text-center text-red-500 text-sm font-medium">
             {error}
           </p>
         )}
 
-        {/* Role Selection */}
+        {/* ROLE SWITCH */}
         <div className="mt-5 flex gap-2 bg-gray-100 p-1 rounded-xl">
           <button
             type="button"
@@ -98,7 +110,7 @@ if (res.data.role === "student") {
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition
               ${role === "student"
                 ? "bg-white text-orange-500 shadow"
-                : "text-gray-400 hover:text-gray-600"}`}
+                : "text-gray-400"}`}
           >
             Student
           </button>
@@ -109,16 +121,16 @@ if (res.data.role === "student") {
             className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition
               ${role === "vendor"
                 ? "bg-white text-orange-500 shadow"
-                : "text-gray-400 hover:text-gray-600"}`}
+                : "text-gray-400"}`}
           >
             Vendor
           </button>
         </div>
 
-        {/* Form */}
+        {/* FORM */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-3">
 
-          {/* Email */}
+          {/* EMAIL */}
           <div>
             <label className="text-[10px] font-bold text-gray-400">Email</label>
             <input
@@ -126,11 +138,14 @@ if (res.data.role === "student") {
               placeholder="you@university.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+              className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
             />
+            {!validateEmail(email) && email && (
+              <p className="text-red-400 text-xs mt-1">Invalid email format</p>
+            )}
           </div>
 
-          {/* Password */}
+          {/* PASSWORD */}
           <div>
             <label className="text-[10px] font-bold text-gray-400">Password</label>
             <div className="relative">
@@ -139,7 +154,7 @@ if (res.data.role === "student") {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
+                className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200"
               />
               <button
                 type="button"
@@ -149,34 +164,39 @@ if (res.data.role === "student") {
                 {showPassword ? "Hide" : "Show"}
               </button>
             </div>
+
+            {password && password.length < 6 && (
+              <p className="text-red-400 text-xs mt-1">
+                Password must be at least 6 characters
+              </p>
+            )}
           </div>
 
-          {/* Button */}
+          {/* BUTTON */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 text-sm bg-gradient-to-r from-orange-500 to-orange-400 text-white font-bold rounded-lg shadow-md hover:shadow-lg hover:scale-[1.02] transition"
+            className="w-full py-2.5 text-sm bg-gradient-to-r from-orange-500 to-orange-400 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition"
           >
             {loading ? "Signing in..." : `Sign in as ${role}`}
           </button>
         </form>
 
-        {/* Divider */}
+        {/* DIVIDER */}
         <div className="my-4 flex items-center gap-2">
           <div className="flex-1 h-px bg-gray-100"></div>
           <span className="text-[9px] text-gray-300">OR</span>
           <div className="flex-1 h-px bg-gray-100"></div>
         </div>
 
-        {/* Google */}
+        {/* GOOGLE */}
         <button className="w-full py-2 border border-gray-200 rounded-lg flex items-center justify-center gap-2 hover:bg-gray-50">
-         
           <span className="text-xs font-semibold text-gray-600">
             Sign in with Google
           </span>
         </button>
 
-        {/* Signup */}
+        {/* SIGNUP */}
         <div className="mt-5 text-center text-xs text-gray-400">
           Don’t have an account?{" "}
           <Link to="/register" className="text-orange-500 font-bold hover:underline">

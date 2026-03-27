@@ -31,33 +31,21 @@ export default function Header({ profile, onLogout }) {
   }, [profile]);
 
   return (
-
     <header className="border-b border-slate-200 bg-white/80 backdrop-blur sticky top-0 z-50 transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-amber-500 text-white font-bold flex items-center justify-center shadow-md">
-            {initials}
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Signed in as</p>
-            <p
-  onClick={() => navigate("/profile")}
-  className="font-semibold text-slate-900 cursor-pointer hover:text-amber-500 transition"
->
-  {user?.name ? user.name : "⚠️ No Name Found"}
-</p>
+      
+      {/* TOP BAR (Signed in info) */}
+      
 
-    <header className="border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-50">
+      {/* MAIN HEADER */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
-        {/* LEFT: Logo Section */}
+        {/* LEFT: Logo */}
         <div 
           className="flex items-center gap-2.5 cursor-pointer group" 
           onClick={() => navigate('/')}
         >
           <div className="bg-orange-500 p-2 rounded-xl text-white text-xl shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
             🍴
-
           </div>
           <span className="text-2xl font-black tracking-tight text-slate-800">
             Uni<span className="text-orange-500">Eats</span>
@@ -88,7 +76,7 @@ export default function Header({ profile, onLogout }) {
             </button>
           </div>
 
-          {/* User Profile Dropdown */}
+          {/* PROFILE DROPDOWN */}
           <div className="relative" ref={dropdownRef}>
             <div 
               className="flex items-center gap-3 pl-2 cursor-pointer group"
@@ -103,15 +91,19 @@ export default function Header({ profile, onLogout }) {
                 </p>
               </div>
               
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center shadow-md group-hover:shadow-lg transition-all active:scale-95">
-                {initials}
+              <div className="flex items-center gap-1">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center shadow-md group-hover:shadow-lg transition-all active:scale-95">
+                  {initials}
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-500" />
               </div>
             </div>
 
-            {/* Dropdown Menu */}
+            {/* DROPDOWN MENU */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 z-[60]">
-                {/* Header Info (Mobile visibility) */}
+              <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-[60]">
+                
+                {/* Mobile header */}
                 <div className="px-5 py-4 border-b border-slate-50 sm:hidden">
                   <p className="text-sm font-bold text-slate-900">{profile?.name || "Alex Johnson"}</p>
                   <p className="text-[11px] text-slate-400 truncate">{profile?.email}</p>
@@ -120,21 +112,21 @@ export default function Header({ profile, onLogout }) {
                 <div className="py-2">
                   <button 
                     onClick={() => { navigate('/profile'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-5 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
                   >
                     <User className="w-4 h-4" /> Profile
                   </button>
 
                   <button 
                     onClick={() => { navigate('/reviews'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
                   >
                     <Star className="w-4 h-4" /> Reviews
                   </button>
 
                   <button 
                     onClick={() => { navigate('/my-orders'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
                   >
                     <Package className="w-4 h-4" /> Orders
                   </button>
@@ -143,11 +135,12 @@ export default function Header({ profile, onLogout }) {
                 <div className="pt-2 border-t border-slate-50">
                   <button 
                     onClick={() => { onLogout(); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50"
                   >
                     <LogOut className="w-4 h-4" /> Log out
                   </button>
                 </div>
+
               </div>
             )}
           </div>

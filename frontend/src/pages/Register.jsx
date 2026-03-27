@@ -20,22 +20,46 @@ function Register({ onLogin }) {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
+  /* ---------------- VALIDATION FUNCTIONS ---------------- */
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const validatePhone = (phone) => /^[0-9]{10}$/.test(phone);
+
+  const validatePassword = (password) => password.length >= 6;
+
+  /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!name || !email || !password) {
-      setError("Please fill in all required fields");
-      return;
+    // BASIC VALIDATION
+    if (!name.trim()) return setError("Full name is required");
+    if (!email.trim()) return setError("Email is required");
+    if (!password.trim()) return setError("Password is required");
+
+    if (!validateEmail(email)) {
+      return setError("Invalid email format");
     }
 
-    if (
-      role === "vendor" &&
-      (!vendorName || !vendorPhone || !vendorLocation || !vendorLogo)
-    ) {
-      setError("Please fill in all vendor details including logo");
-      return;
+    if (!validatePassword(password)) {
+      return setError("Password must be at least 6 characters");
+    }
+
+    if (contactNumber && !validatePhone(contactNumber)) {
+      return setError("Phone number must be 10 digits");
+    }
+
+    // VENDOR VALIDATION
+    if (role === "vendor") {
+      if (!vendorName.trim()) return setError("Vendor name is required");
+      if (!vendorPhone.trim()) return setError("Vendor phone is required");
+      if (!vendorLocation.trim()) return setError("Vendor location is required");
+      if (!vendorLogo) return setError("Vendor logo is required");
+
+      if (!validatePhone(vendorPhone)) {
+        return setError("Vendor phone must be 10 digits");
+      }
     }
 
     setLoading(true);
@@ -54,9 +78,7 @@ function Register({ onLogin }) {
         const encodedEmail = encodeURIComponent(email);
         const profileRes = await api.get(`/api/profile/fetch/${encodedEmail}`);
 
-        if (onLogin) {
-          onLogin(profileRes.data);
-        }
+        onLogin?.(profileRes.data);
         navigate("/home");
       } else {
         const formData = new FormData();
@@ -75,6 +97,7 @@ function Register({ onLogin }) {
 
         setSuccess("Vendor registration submitted. Waiting for admin approval.");
 
+        // RESET FORM
         setName("");
         setEmail("");
         setPassword("");
@@ -150,69 +173,44 @@ function Register({ onLogin }) {
         {/* FORM */}
         <form onSubmit={handleSubmit} className="mt-5 space-y-3">
 
-          <input
-            type="text"
-            placeholder="Full name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="input-modern"
-          />
+          <input type="text" placeholder="Full name" value={name}
+            onChange={(e) => setName(e.target.value)} className="input-modern" />
 
-          <input
-            type="email"
-            placeholder="University Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="input-modern"
-          />
+          <input type="email" placeholder="Email" value={email}
+            onChange={(e) => setEmail(e.target.value)} className="input-modern" />
 
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="input-modern"
-          />
+          {!validateEmail(email) && email && (
+            <p className="text-red-400 text-xs">Invalid email format</p>
+          )}
 
-          <input
-            type="tel"
-            placeholder="Contact Number"
-            value={contactNumber}
-            onChange={(e) => setContactNumber(e.target.value)}
-            className="input-modern"
-          />
+          <input type="password" placeholder="Password" value={password}
+            onChange={(e) => setPassword(e.target.value)} className="input-modern" />
+
+          {password && password.length < 6 && (
+            <p className="text-red-400 text-xs">Min 6 characters required</p>
+          )}
+
+          <input type="tel" placeholder="Contact Number" value={contactNumber}
+            onChange={(e) => setContactNumber(e.target.value)} className="input-modern" />
+
+          {contactNumber && !validatePhone(contactNumber) && (
+            <p className="text-red-400 text-xs">Must be 10 digits</p>
+          )}
 
           {role === "vendor" && (
             <>
-              <input
-                type="text"
-                placeholder="Vendor Name"
-                value={vendorName}
-                onChange={(e) => setVendorName(e.target.value)}
-                className="input-modern"
-              />
+              <input type="text" placeholder="Vendor Name" value={vendorName}
+                onChange={(e) => setVendorName(e.target.value)} className="input-modern" />
 
-              <input
-                type="text"
-                placeholder="Vendor Phone"
-                value={vendorPhone}
-                onChange={(e) => setVendorPhone(e.target.value)}
-                className="input-modern"
-              />
+              <input type="text" placeholder="Vendor Phone" value={vendorPhone}
+                onChange={(e) => setVendorPhone(e.target.value)} className="input-modern" />
 
-              <input
-                type="text"
-                placeholder="Location"
-                value={vendorLocation}
-                onChange={(e) => setVendorLocation(e.target.value)}
-                className="input-modern"
-              />
+              <input type="text" placeholder="Location" value={vendorLocation}
+                onChange={(e) => setVendorLocation(e.target.value)} className="input-modern" />
 
-              <input
-                type="file"
+              <input type="file"
                 onChange={(e) => setVendorLogo(e.target.files[0])}
-                className="text-xs"
-              />
+                className="text-xs" />
             </>
           )}
 
@@ -235,8 +233,7 @@ function Register({ onLogin }) {
       </div>
 
       {/* GLOBAL INPUT STYLE */}
-      <style>
-        {`
+      <style>{`
         .input-modern {
           width: 100%;
           padding: 10px;
@@ -251,8 +248,7 @@ function Register({ onLogin }) {
           box-shadow: 0 0 0 2px rgba(249,115,22,0.1);
           background: white;
         }
-        `}
-      </style>
+      `}</style>
     </div>
   );
 }

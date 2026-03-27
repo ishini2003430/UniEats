@@ -137,39 +137,7 @@ const ProfilePage = () => {
       <Header profile={profile} onLogout={handleLogout} />
 
 
-          {isDropdownOpen && (
-            <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in-95 duration-200">
-              <div className="px-5 py-4 border-b border-gray-50">
-                <p className="text-sm font-bold text-gray-800">{profile.name}</p>
-                <p className="text-[11px] text-gray-400 truncate">{profile.email}</p>
-              </div>
-              <div className="py-2">
-                <button  onClick={() => window.location.href = "/profile"}
-                className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors">
-                  <span>👤</span> Profile
-                </button>
-                <button 
-        onClick={() => window.location.href = "/ratings"} // Change this to your actual route path
-        className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors"
-      >
-        <span className="text-base text-orange-500">☆</span> Reviews
-      </button>
-                <button onClick={() => window.location.href = "/my-orders"}className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-gray-600 hover:bg-orange-50 hover:text-orange-500 transition-colors">
-                  <span>🛍️</span> Orders
-                </button>
-              </div>
-              <div className="pt-2 border-t border-gray-50">
-                <button 
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-5 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <span>↪️</span> Log out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+          
 
       <div className="max-w-7xl mx-auto px-10 py-10">
 
@@ -364,6 +332,7 @@ const ProfilePage = () => {
           </div>
         )}
       </main>
+      </div>
 
       {/* INCLUDED FOOTER COMPONENT */}
       <Footer />
