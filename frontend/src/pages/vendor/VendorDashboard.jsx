@@ -26,7 +26,11 @@ function VendorDashboard({ user, onLogout, forceTab }) {
   const seenNotificationIdsRef = useRef(new Set());
 
   const currentTabParam = searchParams.get("tab");
-  const activeTab = forceTab || (currentTabParam === "orders" ? "orders" : "dashboard");
+  const activeTab =
+  forceTab ||
+  (["dashboard", "orders", "menu"].includes(currentTabParam)
+    ? currentTabParam
+    : "dashboard");
 
   const currentOrderSubTabParam = searchParams.get("ordersTab");
   const isValidOrderSubTab = orderSubTabs.some((tab) => tab.id === currentOrderSubTabParam);

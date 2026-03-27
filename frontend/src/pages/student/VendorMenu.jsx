@@ -33,7 +33,7 @@ export default function VendorMenu({ user, onLogout }) {
         setVendorDetails(vendorRes.data);
 
         // Fetch Vendor Menu Foods
-        const foodsRes = await api.get(`/api/foods?vendorId=${vendorId}`);
+        const foodsRes = await api.get(`/api/foods?vendorId=${vendorId}&available=true`);
         setMenuItems(foodsRes.data);
       } catch (err) {
         console.error("Failed to fetch vendor or menu:", err);
@@ -59,10 +59,12 @@ export default function VendorMenu({ user, onLogout }) {
 
   // Cart functions
   const addToCart = (food) => {
-    if (!cartItems.includes(String(food._id))) {
-      setCartItems((prev) => [...prev, String(food._id)]);
-    }
-  };
+  if (!food.isAvailable) return; // 🚫 block invalid
+
+  if (!cartItems.includes(String(food._id))) {
+    setCartItems((prev) => [...prev, String(food._id)]);
+  }
+};
 
   const removeFromCart = (foodId) => {
     setCartItems((prev) => prev.filter((id) => id !== String(foodId)));
@@ -154,7 +156,7 @@ export default function VendorMenu({ user, onLogout }) {
                   </motion.div>
                 ) : (
                   filteredItems.map((item) => {
-                    const isAvailable = item.quantity > 0;
+                    const isAvailable = item.isAvailable;
                     const inCart = cartItems.includes(String(item._id));
                     
                     return (

@@ -6,11 +6,17 @@ import Signin from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 
 import AdminDashboard from "./pages/AdminDashboard";
-
 import VendorDashboard from "./pages/Vendor/VendorDashboard";
+
+
+
+import RatingsPage from "./pages/RatingsPage";
+
+
 
 import StudentProfile from "./pages/StudentProfile";
 import ReviewsPage from "./pages/ReviewsPage";
+
 
 
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
@@ -18,8 +24,6 @@ import MyOrdersPage from "./pages/student/MyOrdersPage";
 import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
-import FoodManagement from "./pages/vendor/FoodManagement";
-
 
 function App() {
   const [user, setUser] = useState(null);
@@ -37,10 +41,12 @@ function App() {
   };
 
   if (user) {
+
     // REMOVE these lines:
     // if (user.role === "admin") return <AdminDashboard />;
     // if (user.role === "vendor") return <VendorDashboard />;
     // if (user.role === "student") return <StudentProfile />;
+
 
     return (
       <Routes>
@@ -63,7 +69,13 @@ function App() {
             />
             <Route
               path="/food-management"
-              element={<VendorDashboard user={user} onLogout={handleLogout} forceTab="menu" />}
+              element={
+                <VendorDashboard
+                  user={user}
+                  onLogout={handleLogout}
+                  forceTab="menu"
+                />
+              }
             />
             <Route
               path="*"
@@ -76,6 +88,55 @@ function App() {
         {/* STUDENT ROUTES */}
         {user.role === "student" && (
           <>
+
+            {/* Home */}
+            <Route
+              path="/"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+            <Route
+              path="/home"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+
+            {/* Profile */}
+            <Route
+              path="/profile"
+              element={<StudentProfile user={user} onLogout={handleLogout} />}
+            />
+
+            {/* Vendors */}
+            <Route
+              path="/vendor-list"
+              element={<VendorList user={user} onLogout={handleLogout} />}
+            />
+            <Route
+              path="/vendor/:vendorId"
+              element={<VendorMenu user={user} onLogout={handleLogout} />}
+            />
+
+            {/* Orders */}
+            <Route
+              path="/student/order"
+              element={<StudentOrderProcessPage user={user} />}
+            />
+            <Route
+              path="/my-orders"
+              element={<MyOrdersPage user={user} />}
+            />
+
+            {/* Ratings (optional) */}
+            <Route
+              path="/ratings"
+              element={<RatingsPage user={user} />}
+            />
+
+            {/* Fallback */}
+            <Route
+              path="*"
+              element={<HomePage user={user} onLogout={handleLogout} />}
+            />
+
             <Route path="/" element={<HomePage user={user} onLogout={handleLogout} />} />
             <Route path="/home" element={<HomePage user={user} onLogout={handleLogout} />} />
             <Route path="/profile" element={<StudentProfile user={user} onLogout={handleLogout} />} />
@@ -85,6 +146,7 @@ function App() {
             <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
             <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
             <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
+
           </>
         )}
       </Routes>
@@ -98,6 +160,10 @@ function App() {
       <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
+
+
+      {/* fallback */}
+
       <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
   );

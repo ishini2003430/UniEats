@@ -136,7 +136,13 @@ const ProfilePage = () => {
       {/* REPLACED MANUAL NAV WITH MODERN HEADER COMPONENT */}
       <Header profile={profile} onLogout={handleLogout} />
 
+
+          
+
+      <div className="max-w-7xl mx-auto px-10 py-10">
+
       <main className="flex-grow max-w-7xl mx-auto px-6 sm:px-10 py-10 w-full">
+
         {/* Profile Banner */}
         <div className="bg-[#FFF8F3] rounded-[2rem] p-10 flex flex-col md:flex-row items-center justify-between mb-10 border border-orange-50/50 shadow-sm">
           <div className="flex items-center gap-8">
@@ -326,6 +332,7 @@ const ProfilePage = () => {
           </div>
         )}
       </main>
+      </div>
 
       {/* INCLUDED FOOTER COMPONENT */}
       <Footer />
