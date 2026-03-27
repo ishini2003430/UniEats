@@ -19,7 +19,8 @@ import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
 import FoodManagement from "./pages/vendor/FoodManagement";
-
+import HelpCenter from "./pages/student/Helpcenter";
+import TermsPage from "./pages/student/TermsPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -84,7 +85,8 @@ function App() {
             <Route path="/vendor/:vendorId" element={<VendorMenu user={user} onLogout={handleLogout} />} />
             <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
             <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
+            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />/helpcenter
+            
           </>
         )}
       </Routes>
@@ -99,6 +101,9 @@ function App() {
       <Route path="/register" element={<Signin />} />
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
+      <Route path="/helpcenter" element={<HelpCenter />} />
+      <Route path="/rate-us" element={<ReviewsPage />} />
+      <Route path="/terms" element={<TermsPage />} />
     </Routes>
   );
 }

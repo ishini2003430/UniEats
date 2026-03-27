@@ -32,9 +32,9 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold text-lg mb-4">Quick Links</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="hover:text-amber-500 transition-colors">Home</a></li>
-              <li><a href="#" className="hover:text-amber-500 transition-colors">Browse Vendors</a></li>
-              <li><a href="#" className="hover:text-amber-500 transition-colors">My Orders</a></li>
+              <li><a href="/" className="hover:text-amber-500 transition-colors">Home</a></li>
+              <li><a href="/vendor-list" className="hover:text-amber-500 transition-colors">Browse Vendors</a></li>
+              <li><a href="/my-orders" className="hover:text-amber-500 transition-colors">My Orders</a></li>
               <li><a href="#" className="hover:text-amber-500 transition-colors">Cart Checkout</a></li>
             </ul>
           </div>
@@ -42,9 +42,10 @@ export default function Footer() {
           <div>
             <h3 className="text-white font-semibold text-lg mb-4">Support</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="hover:text-amber-500 transition-colors">Help Center</a></li>
-              <li><a href="#" className="hover:text-amber-500 transition-colors">Terms of Service</a></li>
+              <li><a href="/helpcenter" className="hover:text-amber-500 transition-colors">Help Center</a></li>
+              <li><a href="/terms" className="hover:text-amber-500 transition-colors">Terms of Service</a></li>
               <li><a href="#" className="hover:text-amber-500 transition-colors">Privacy Policy</a></li>
+              <li > <a href="/rate-us" className="hover:text-amber-500 transition-colors"> Rate us </a></li>
               <li className="flex items-center gap-2 mt-4 text-slate-400">
                 <Mail className="w-4 h-4" /> support@unieats.com
               </li>
