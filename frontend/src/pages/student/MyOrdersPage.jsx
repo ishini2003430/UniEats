@@ -151,6 +151,7 @@ export default function MyOrdersPage({ user }) {
               No orders yet
             </p>
           ) : (
+
             <div className="space-y-6">
               <AnimatePresence>
                 {orders.map((order) => (
@@ -161,6 +162,54 @@ export default function MyOrdersPage({ user }) {
                   />
                 ))}
               </AnimatePresence>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-500 border-b border-slate-200">
+                    <th className="py-2">Order ID</th>
+                    <th className="py-2">Status</th>
+                    <th className="py-2">Pickup Code</th>
+                    <th className="py-2">Created</th>
+                    <th className="py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order._id} className="border-b border-slate-100">
+                      <td className="py-3 font-medium text-slate-800">{order.orderId}</td>
+                      <td className="py-3">
+                        <span className={`px-2 py-1 rounded text-xs ${statusClass(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-slate-800 font-semibold tracking-wide">{getCodesLabel(order)}</td>
+                      <td className="py-3 text-slate-600">{new Date(order.createdAt).toLocaleString()}</td>
+                      <td className="py-3 flex gap-2">
+  {/* Existing Cancel Button */}
+  <button
+    onClick={() => openCancelFlow(order)}
+    disabled={order.status !== "Pending"}
+    className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    Cancel
+  </button>
+
+  {/* NEW: Rate Order Button - Only shows when Completed/Collected */}
+  {order.status === "Completed" && (
+    <button
+      onClick={() => navigate("/reviews", { state: { order } })}
+      className="px-3 py-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-sm flex items-center gap-1 transition-all active:scale-95"
+    >
+      <span className="text-xs">⭐</span> Rate
+    </button>
+  )}
+</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
             </div>
           )}
         </section>
