@@ -188,15 +188,26 @@ export default function MyOrdersPage({ user }) {
                       </td>
                       <td className="py-3 text-slate-800 font-semibold tracking-wide">{getCodesLabel(order)}</td>
                       <td className="py-3 text-slate-600">{new Date(order.createdAt).toLocaleString()}</td>
-                      <td className="py-3">
-                        <button
-                          onClick={() => openCancelFlow(order)}
-                          disabled={order.status !== "Pending"}
-                          className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Cancel
-                        </button>
-                      </td>
+                      <td className="py-3 flex gap-2">
+  {/* Existing Cancel Button */}
+  <button
+    onClick={() => openCancelFlow(order)}
+    disabled={order.status !== "Pending"}
+    className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    Cancel
+  </button>
+
+  {/* NEW: Rate Order Button - Only shows when Completed/Collected */}
+  {order.status === "Completed" && (
+    <button
+      onClick={() => navigate("/reviews", { state: { order } })}
+      className="px-3 py-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 shadow-sm flex items-center gap-1 transition-all active:scale-95"
+    >
+      <span className="text-xs">⭐</span> Rate
+    </button>
+  )}
+</td>
                     </tr>
                   ))}
                 </tbody>

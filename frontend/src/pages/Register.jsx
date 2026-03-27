@@ -9,8 +9,8 @@ function Register({ onLogin }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
 
-  // Vendor-only fields
   const [vendorName, setVendorName] = useState("");
   const [vendorPhone, setVendorPhone] = useState("");
   const [vendorLocation, setVendorLocation] = useState("");
@@ -25,13 +25,11 @@ function Register({ onLogin }) {
     setError("");
     setSuccess("");
 
-    // Basic validation
     if (!name || !email || !password) {
       setError("Please fill in all required fields");
       return;
     }
 
-    // Vendor validation
     if (
       role === "vendor" &&
       (!vendorName || !vendorPhone || !vendorLocation || !vendorLogo)
@@ -43,41 +41,44 @@ function Register({ onLogin }) {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("name", name);
-      formData.append("email", email);
-      formData.append("password", password);
-      formData.append("role", role);
+      if (role === "student") {
+        await api.post("/api/users/register/student", {
+          name,
+          email,
+          password,
+          contactNumber,
+        });
 
-      if (role === "vendor") {
+        setSuccess("Registration successful. Fetching profile...");
+
+        const encodedEmail = encodeURIComponent(email);
+        const profileRes = await api.get(`/api/profile/fetch/${encodedEmail}`);
+
+        if (onLogin) {
+          onLogin(profileRes.data);
+        }
+        navigate("/home");
+      } else {
+        const formData = new FormData();
+        formData.append("name", name);
+        formData.append("email", email);
+        formData.append("password", password);
+        formData.append("contactNumber", contactNumber);
         formData.append("vendorName", vendorName);
         formData.append("vendorPhone", vendorPhone);
         formData.append("vendorLocation", vendorLocation);
         formData.append("vendorLogo", vendorLogo);
-      }
 
-      const res = await api.post("/api/users/register", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+        await api.post("/api/users/register/vendor", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
 
-      if (role === "student" && res.data.user && onLogin) {
-        setSuccess("Registration successful! Logging you in...");
-        
-        setTimeout(() => {
-          onLogin(res.data.user);
-          navigate("/home");
-        }, 1500);
-      } else {
-        setSuccess(
-          role === "vendor"
-            ? "Vendor registration submitted. Waiting for admin approval."
-            : "Registration successful. You can now login."
-        );
+        setSuccess("Vendor registration submitted. Waiting for admin approval.");
 
-        // Reset form
         setName("");
         setEmail("");
         setPassword("");
+        setContactNumber("");
         setVendorName("");
         setVendorPhone("");
         setVendorLocation("");
@@ -92,38 +93,44 @@ function Register({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center 
-      bg-gradient-to-br from-blue-700 via-blue-600 to-red-600 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fff7ed] to-[#fdfcfb] px-4">
 
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-8">
+      {/* LOGO */}
+      <div className="absolute top-10 flex flex-col items-center">
+        <div className="bg-gradient-to-tr from-orange-500 to-orange-400 p-2.5 rounded-xl shadow-lg shadow-orange-200 mb-2">
+          <span className="text-white text-lg">🍴</span>
+        </div>
+        <h1 className="text-2xl font-extrabold text-gray-800">
+          Uni<span className="text-orange-500">Eats</span>
+        </h1>
+      </div>
 
-        <h2 className="text-3xl font-bold text-center text-gray-800">
+      {/* FORM CARD */}
+      <div className="bg-white/80 backdrop-blur-md w-full max-w-sm rounded-2xl shadow-xl border border-orange-100 p-6 mt-20">
+
+        <h2 className="text-xl font-bold text-center text-gray-800">
           Create Account
         </h2>
-        <p className="text-center text-sm text-gray-500 mt-1">
+        <p className="text-center text-xs text-gray-400 mt-1">
           Student & Vendor Registration
         </p>
 
         {error && (
-          <p className="mt-4 text-center text-red-600 font-medium">
-            {error}
-          </p>
+          <p className="mt-3 text-center text-red-500 text-sm">{error}</p>
         )}
         {success && (
-          <p className="mt-4 text-center text-green-600 font-medium">
-            {success}
-          </p>
+          <p className="mt-3 text-center text-green-500 text-sm">{success}</p>
         )}
 
-        {/* Role Selection */}
-        <div className="mt-6 flex justify-center gap-4">
+        {/* ROLE SWITCH */}
+        <div className="mt-5 flex gap-2 bg-gray-100 p-1 rounded-xl">
           <button
             type="button"
             onClick={() => setRole("student")}
-            className={`px-4 py-2 rounded-lg font-medium border 
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition
               ${role === "student"
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-600 border-gray-300"}`}
+                ? "bg-white text-orange-500 shadow"
+                : "text-gray-400"}`}
           >
             Student
           </button>
@@ -131,31 +138,32 @@ function Register({ onLogin }) {
           <button
             type="button"
             onClick={() => setRole("vendor")}
-            className={`px-4 py-2 rounded-lg font-medium border 
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition
               ${role === "vendor"
-                ? "bg-red-600 text-white border-red-600"
-                : "bg-white text-gray-600 border-gray-300"}`}
+                ? "bg-white text-orange-500 shadow"
+                : "text-gray-400"}`}
           >
             Vendor
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+
           <input
             type="text"
             placeholder="Full name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
+            className="input-modern"
           />
 
           <input
             type="email"
-            placeholder="Email address"
+            placeholder="University Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
+            className="input-modern"
           />
 
           <input
@@ -163,41 +171,47 @@ function Register({ onLogin }) {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-600"
+            className="input-modern"
           />
 
-          {/* Vendor-only fields */}
+          <input
+            type="tel"
+            placeholder="Contact Number"
+            value={contactNumber}
+            onChange={(e) => setContactNumber(e.target.value)}
+            className="input-modern"
+          />
+
           {role === "vendor" && (
             <>
               <input
                 type="text"
-                placeholder="Vendor / Shop Name"
+                placeholder="Vendor Name"
                 value={vendorName}
                 onChange={(e) => setVendorName(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+                className="input-modern"
               />
 
               <input
                 type="text"
-                placeholder="Contact Number"
+                placeholder="Vendor Phone"
                 value={vendorPhone}
                 onChange={(e) => setVendorPhone(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+                className="input-modern"
               />
 
               <input
                 type="text"
-                placeholder="Location / Campus"
+                placeholder="Location"
                 value={vendorLocation}
                 onChange={(e) => setVendorLocation(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-600"
+                className="input-modern"
               />
 
               <input
                 type="file"
-                accept="image/*"
                 onChange={(e) => setVendorLogo(e.target.files[0])}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="text-xs"
               />
             </>
           )}
@@ -205,28 +219,40 @@ function Register({ onLogin }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 bg-blue-600 text-white 
-              font-semibold rounded-lg hover:bg-blue-700 transition
-              disabled:opacity-50"
+            className="w-full py-2.5 text-sm bg-gradient-to-r from-orange-500 to-orange-400 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition"
           >
-            {loading
-              ? "Please wait..."
-              : role === "vendor"
-              ? "Register as Vendor"
-              : "Register as Student"}
+            {loading ? "Please wait..." :
+              role === "vendor" ? "Register as Vendor" : "Register as Student"}
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-5 text-center text-xs text-gray-400">
           Already have an account?{" "}
-          <Link
-            to="/"
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <Link to="/" className="text-orange-500 font-bold hover:underline">
             Login
           </Link>
         </div>
       </div>
+
+      {/* GLOBAL INPUT STYLE */}
+      <style>
+        {`
+        .input-modern {
+          width: 100%;
+          padding: 10px;
+          font-size: 13px;
+          border-radius: 8px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          outline: none;
+        }
+        .input-modern:focus {
+          border-color: #f97316;
+          box-shadow: 0 0 0 2px rgba(249,115,22,0.1);
+          background: white;
+        }
+        `}
+      </style>
     </div>
   );
 }
