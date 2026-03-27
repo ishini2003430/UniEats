@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertCircle,
   ArrowLeft,
@@ -12,6 +13,20 @@ import {
 } from "lucide-react";
 import api from "../../services/api";
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 25 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 },
+};
+
+const scaleIn = {
+  hidden: { scale: 0.9, opacity: 0 },
+  visible: { scale: 1, opacity: 1 },
+};
 const formatLkr = (value) => `Rs. ${Number(value || 0).toFixed(2)}`;
 
 const buildOrderRef = () => {
@@ -44,7 +59,6 @@ export default function StudentOrderProcessPage({ user }) {
 
   const [step, setStep] = useState(1);
   const [selectedSlotByVendor, setSelectedSlotByVendor] = useState({});
-  const [paymentMode, setPaymentMode] = useState("success");
   const [checkoutError, setCheckoutError] = useState("");
   const [latestOrderRefs, setLatestOrderRefs] = useState([]);
 
@@ -185,12 +199,6 @@ export default function StudentOrderProcessPage({ user }) {
       return;
     }
 
-    if (paymentMode === "failed") {
-      setCheckoutError("Payment failed. Please switch to success mode to continue.");
-      setStep(4);
-      return;
-    }
-
     setPlacingOrder(true);
     setCheckoutError("");
 
@@ -230,11 +238,11 @@ export default function StudentOrderProcessPage({ user }) {
   }
 
   const stepMeta = [
-    { title: "Review", desc: "Items and totals" },
-    { title: "Slots", desc: "Pick time per vendor" },
-    { title: "Payment", desc: "Dummy gateway" },
-    { title: "Result", desc: "Order outcome" },
-  ];
+  { title: "Review", desc: "Items and totals" },
+  { title: "Slots", desc: "Pick time per vendor" },
+  { title: "Confirm", desc: "Place your order" }, 
+  { title: "Result", desc: "Order outcome" },
+];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 py-8">
@@ -254,7 +262,7 @@ export default function StudentOrderProcessPage({ user }) {
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Complete Your Order</h1>
                 <p className="text-sm text-slate-600 mt-2 max-w-2xl">
-                  Smooth 4-step checkout with clear pricing, vendor-based slot selection, and payment simulation.
+                 
                 </p>
               </div>
 
@@ -476,46 +484,36 @@ export default function StudentOrderProcessPage({ user }) {
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-slate-900">Dummy Payment Gateway</h3>
-              <p className="text-sm text-slate-600">Choose payment outcome for testing flow.</p>
+  <div className="space-y-4">
+    <h3 className="text-lg font-semibold text-slate-900">Confirm Your Order</h3>
+    <p className="text-sm text-slate-600">
+      You will pay at pickup. No online payment required.
+    </p>
 
-              <div className="rounded-xl border border-slate-200 p-4 space-y-3 bg-slate-50/70">
-                <label className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-white">
-                  <input type="radio" checked={paymentMode === "success"} onChange={() => setPaymentMode("success")} />
-                  Simulate Success
-                </label>
-                <label className="flex items-center gap-2 text-sm p-2 rounded-lg hover:bg-white">
-                  <input type="radio" checked={paymentMode === "failed"} onChange={() => setPaymentMode("failed")} />
-                  Simulate Failure
-                </label>
-              </div>
+    {checkoutError && (
+      <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm inline-flex items-center gap-2">
+        <AlertCircle className="w-4 h-4" /> {checkoutError}
+      </div>
+    )}
 
-              {checkoutError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm inline-flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" /> {checkoutError}
-                </div>
-              )}
+    <div className="flex justify-between">
+      <button
+        onClick={() => setStep(2)}
+        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
+      >
+        Back
+      </button>
 
-              <div className="flex justify-between">
-                <button
-                  onClick={() => setStep(2)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={placeOrder}
-                  disabled={placingOrder}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
-                >
-                  <Wallet className="w-4 h-4" />
-                  {placingOrder ? "Processing..." : "Pay & Place Orders"}
-                </button>
-              </div>
-            </div>
-          )}
-
+      <button
+        onClick={placeOrder}
+        disabled={placingOrder}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+      >
+        {placingOrder ? "Placing Order..." : "Place Order"}
+      </button>
+    </div>
+  </div>
+)}
           {step === 4 && (
             <div className="space-y-4">
               {checkoutError ? (
