@@ -1,11 +1,12 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ShoppingCart, LogOut, User, Star, Package, ChevronDown } from 'lucide-react';
+import { Bell, ShoppingCart, LogOut, User, Star, Package, Heart, ChevronDown } from 'lucide-react';
 
-export default function Header({ profile, onLogout }) {
+export default function Header({ profile, user, onLogout }) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const profileData = profile || user;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function Header({ profile, onLogout }) {
   }, []);
 
   const initials = useMemo(() => {
-    const name = profile?.name || "Student";
+    const name = profileData?.name || "Student";
     return (
       name
         .split(" ")
@@ -28,18 +29,13 @@ export default function Header({ profile, onLogout }) {
         .map((part) => part[0]?.toUpperCase())
         .join("") || "ST"
     );
-  }, [profile]);
+  }, [profileData]);
 
   return (
-    <header className="border-b border-slate-200 bg-white/80 backdrop-blur sticky top-0 z-50 transition-all duration-300">
-      
-      {/* TOP BAR (Signed in info) */}
-      
-
-      {/* MAIN HEADER */}
+    <header className="border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
-        {/* LEFT: Logo */}
+        {/* LEFT: Logo Section */}
         <div 
           className="flex items-center gap-2.5 cursor-pointer group" 
           onClick={() => navigate('/')}
@@ -55,6 +51,7 @@ export default function Header({ profile, onLogout }) {
         {/* CENTER: Navigation */}
         <nav className="hidden lg:flex items-center gap-8">
           <button onClick={() => navigate('/menu')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Menu</button>
+          <button onClick={() => navigate('/student/favorites')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Favorites</button>
           <button onClick={() => navigate('/my-orders')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Orders</button>
           <button onClick={() => navigate('/offers')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Offers</button>
         </nav>
@@ -75,8 +72,9 @@ export default function Header({ profile, onLogout }) {
               <ShoppingCart className="w-5 h-5" />
             </button>
           </div>
+          
 
-          {/* PROFILE DROPDOWN */}
+          {/* User Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <div 
               className="flex items-center gap-3 pl-2 cursor-pointer group"
@@ -84,49 +82,52 @@ export default function Header({ profile, onLogout }) {
             >
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-slate-900 leading-none">
-                  {profile?.name || "Alex Johnson"}
+                  {profileData?.name || "Alex Johnson"}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  {profile?.email || "student@sliit.lk"}
+                  {profileData?.email || "student@sliit.lk"}
                 </p>
               </div>
               
-              <div className="flex items-center gap-1">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center shadow-md group-hover:shadow-lg transition-all active:scale-95">
-                  {initials}
-                </div>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center shadow-md group-hover:shadow-lg transition-all active:scale-95">
+                {initials}
               </div>
             </div>
 
-            {/* DROPDOWN MENU */}
+            {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-[60]">
-                
-                {/* Mobile header */}
+              <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 z-[60]">
+                {/* Header Info (Mobile visibility) */}
                 <div className="px-5 py-4 border-b border-slate-50 sm:hidden">
-                  <p className="text-sm font-bold text-slate-900">{profile?.name || "Alex Johnson"}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{profile?.email}</p>
+                  <p className="text-sm font-bold text-slate-900">{profileData?.name || "Alex Johnson"}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{profileData?.email}</p>
                 </div>
 
                 <div className="py-2">
                   <button 
                     onClick={() => { navigate('/profile'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
+                    className="w-full flex items-center gap-5 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                   >
                     <User className="w-4 h-4" /> Profile
                   </button>
 
                   <button 
                     onClick={() => { navigate('/reviews'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                   >
                     <Star className="w-4 h-4" /> Reviews
                   </button>
 
                   <button 
+                    onClick={() => { navigate('/student/favorites'); setIsDropdownOpen(false); }}
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
+                  >
+                    <Heart className="w-4 h-4" /> Favorites
+                  </button>
+
+                  <button 
                     onClick={() => { navigate('/my-orders'); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors"
                   >
                     <Package className="w-4 h-4" /> Orders
                   </button>
@@ -135,12 +136,11 @@ export default function Header({ profile, onLogout }) {
                 <div className="pt-2 border-t border-slate-50">
                   <button 
                     onClick={() => { onLogout(); setIsDropdownOpen(false); }}
-                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50"
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <LogOut className="w-4 h-4" /> Log out
                   </button>
                 </div>
-
               </div>
             )}
           </div>
