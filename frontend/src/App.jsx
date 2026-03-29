@@ -28,6 +28,7 @@ import VendorMenu from "./pages/student/VendorMenu";
 import FoodManagement from "./pages/vendor/FoodManagement";
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
+import Privacypage from "./pages/student/Privacypage";
 
 
 
@@ -179,6 +180,7 @@ function App() {
       <Route path="/helpcenter" element={<HelpCenter />} />
       <Route path="/rate-us" element={<ReviewsPage />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<Privacypage />} />
     </Routes>
   );
 }

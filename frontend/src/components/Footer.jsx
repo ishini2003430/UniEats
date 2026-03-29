@@ -44,7 +44,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li><a href="/helpcenter" className="hover:text-amber-500 transition-colors">Help Center</a></li>
               <li><a href="/terms" className="hover:text-amber-500 transition-colors">Terms of Service</a></li>
-              <li><a href="#" className="hover:text-amber-500 transition-colors">Privacy Policy</a></li>
+              <li><a href="/privacy" className="hover:text-amber-500 transition-colors">Privacy Policy</a></li>
               <li > <a href="/rate-us" className="hover:text-amber-500 transition-colors"> Rate us </a></li>
               <li className="flex items-center gap-2 mt-4 text-slate-400">
                 <Mail className="w-4 h-4" /> support@unieats.com

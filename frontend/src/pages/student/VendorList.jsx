@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronRight, Star } from 'lucide-react';
@@ -9,14 +9,28 @@ import Footer from '../../components/Footer';
 
 import api from '../../services/api';
 
-export default function VendorList({ user, onLogout }) {
+export default function VendorList({ onLogout }) {
     const navigate = useNavigate();
-    const [vendors, setVendors] = React.useState([]);
+    const [vendors, setVendors] = useState([]);
+    const [userProfile, setUserProfile] = useState(null);
 
-    React.useEffect(() => {
+    // 1. Fetch User Profile from localStorage (Same as TermsOfService)
+    useEffect(() => {
+        const savedUser = localStorage.getItem("user");
+        if (savedUser) {
+            try {
+                setUserProfile(JSON.parse(savedUser));
+            } catch (error) {
+                console.error("Error parsing user data", error);
+            }
+        }
+    }, []);
+
+    // 2. Fetch Vendors from API
+    useEffect(() => {
         const fetchVendors = async () => {
             try {
-                const res = await api.get('/api/users/vendors'); // create this
+                const res = await api.get('/api/users/vendors');
                 setVendors(res.data);
             } catch (err) {
                 console.error("Failed to fetch vendors", err);
@@ -25,13 +39,20 @@ export default function VendorList({ user, onLogout }) {
         fetchVendors();
     }, []);
 
+    const handleLogout = () => {
+        localStorage.removeItem("user");
+        if (onLogout) onLogout();
+        window.location.href = "/login";
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-            <Header user={user} onLogout={onLogout} />
+            {/* Header now receives userProfile correctly */}
+            <Header profile={userProfile} onLogout={handleLogout} />
 
             {/* Animated Hero Section */}
             <section className="relative w-full bg-gradient-to-br from-amber-400 via-orange-400 to-orange-500 overflow-hidden pt-20 pb-24 sm:pt-28 sm:pb-32 lg:pt-32 lg:pb-40">
-
+                
                 {/* Background decorative elements */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <motion.div
@@ -66,9 +87,8 @@ export default function VendorList({ user, onLogout }) {
                             </p>
 
                             <motion.button
-                                onClick={() => {document
-                                    .getElementById("vendors-section")
-                                    ?.scrollIntoView({ behavior: "smooth" });
+                                onClick={() => {
+                                    document.getElementById("vendors-section")?.scrollIntoView({ behavior: "smooth" });
                                 }}
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
@@ -87,16 +107,10 @@ export default function VendorList({ user, onLogout }) {
                             className="w-full lg:w-1/2 flex justify-center lg:justify-end z-10"
                         >
                             <div className="relative w-72 h-72 sm:w-96 sm:h-96 lg:w-[28rem] lg:h-[28rem]">
-                                {/* Image Glow/Backdrop */}
                                 <div className="absolute inset-0 bg-white/20 rounded-full blur-3xl scale-90"></div>
-
                                 <motion.div
                                     animate={{ y: [-15, 15, -15] }}
-                                    transition={{
-                                        duration: 4,
-                                        repeat: Infinity,
-                                        ease: "easeInOut"
-                                    }}
+                                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                                     className="relative w-full h-full rounded-full border-[12px] border-white/30 shadow-2xl overflow-hidden backdrop-blur-sm"
                                 >
                                     <img
@@ -105,8 +119,6 @@ export default function VendorList({ user, onLogout }) {
                                         className="w-full h-full object-cover rounded-full"
                                     />
                                 </motion.div>
-
-                                {/* Floating badge */}
                                 <motion.div
                                     animate={{ y: [-10, 10, -10] }}
                                     transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
@@ -122,11 +134,9 @@ export default function VendorList({ user, onLogout }) {
                                 </motion.div>
                             </div>
                         </motion.div>
-
                     </div>
                 </div>
 
-                {/* Bottom wave separator */}
                 <div className="absolute bottom-0 left-0 w-full overflow-hidden leading-none z-10 translate-y-[1px]">
                     <svg className="relative block w-full h-[50px] sm:h-[100px]" preserveAspectRatio="none" viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg">
                         <path className="fill-slate-50" d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V95.8C59.71,118.08,130.83,121.32,201.29,111.4,242.01,105.41,281.86,81.16,321.39,56.44Z"></path>
@@ -134,11 +144,8 @@ export default function VendorList({ user, onLogout }) {
                 </div>
             </section>
 
-            {/* Main Content Area: Responsive Vendor Grid */}
-            <main
-                id="vendors-section"
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full"
-            >
+            {/* Main Content Area */}
+            <main id="vendors-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex-grow w-full">
                 <div className="mb-10 text-center sm:text-left">
                     <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Our Campus Vendors</h2>
                     <p className="text-slate-500 mt-2 text-lg">Pick a restaurant and explore their delicious menus.</p>
@@ -160,24 +167,6 @@ export default function VendorList({ user, onLogout }) {
                         <p className="text-lg text-slate-500 font-medium">No vendors available at the moment.</p>
                     </div>
                 )}
-
-                {/* Recommendation Section: Popular on Campus */}
-                <section className="mt-24 pt-16 border-t border-slate-200">
-                    <div className="text-center max-w-2xl mx-auto mb-12">
-                        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Popular on Campus</h2>
-                        <p className="text-slate-500 mt-4 text-lg">
-                            Discover the most loved and top-rated spots fueling students right now.
-                        </p>
-                    </div>
-
-                    {vendors.length >= 3 && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                            {vendors.slice(0, 3).map((vendor) => (
-                                <VendorCard key={`popular-${vendor._id}`} vendor={vendor} />
-                            ))}
-                        </div>
-                    )}
-                </section>
             </main>
             <Footer />
         </div>
