@@ -52,6 +52,12 @@ contactNumber: {
   type: String,
   default: null,
 },
+
+department: { // Add this
+  type: String,
+  default: "Computing",
+},
+
 dietaryPreferences: { type: [String], default: [] },
 
 favoriteMeals: {
@@ -62,7 +68,11 @@ loyaltyPoints: {
   type: Number,
   default: 0,
 },
-
+activeVoucher: {
+    code: String,
+    expiryDate: Date,
+    isUsed: { type: Boolean, default: false }
+  },
 
 
 
