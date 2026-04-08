@@ -362,7 +362,7 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
       summaryLines,
     });
 
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       ...vendorEmailJobs,
       sendEmail({
         to: studentUser?.email,
@@ -371,6 +371,22 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         html: studentEmail.html,
       }),
     ]);
+
+    // Log email send results for debugging (useful when SMTP isn't configured)
+    results.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        console.error(`email job ${idx} failed:`, r.reason || r);
+      } else if (r.status === "fulfilled") {
+        const val = r.value;
+        if (val && val.skipped) {
+          console.warn(`email job ${idx} skipped:`, val.reason);
+        } else if (val && val.preview) {
+          console.info(`email job ${idx} preview URL:`, val.preview);
+        } else {
+          console.info(`email job ${idx} sent`);
+        }
+      }
+    });
   } catch (notifyError) {
     console.error("sendOrderCreatedNotifications error:", notifyError);
   }

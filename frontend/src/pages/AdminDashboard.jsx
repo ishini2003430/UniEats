@@ -7,6 +7,7 @@ import ManageVendors from "./ManageVendors";
 import ManageActiveVendors from "./ManageActiveVendors";
 import ManageStudents from "./ManageStudents";
 import AllActivities from "./AllActivities"; // ✅ NEW IMPORT
+import AdminOrders from "./AdminOrders";
 
 function AdminDashboard({ onLogout, user }) {
   const [view, setView] = useState("home");
@@ -32,6 +33,9 @@ function AdminDashboard({ onLogout, user }) {
 
       case "allActivities": // ✅ NEW CASE
         return <AllActivities onBack={() => setView("home")} />;
+
+      case "orders":
+        return <AdminOrders onBack={() => setView("home")} />;
 
       default:
         return <DashboardHome setView={setView} />;

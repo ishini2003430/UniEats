@@ -23,10 +23,22 @@ router.get("/stats", async (req, res) => {
       role: "student",
     });
 
+    // count today's orders
+    const Order = require("../models/order-n-cancellation/Order");
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const ordersToday = await Order.countDocuments({
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
     res.json({
       pendingVendors,
       activeVendors,
       students,
+      ordersToday,
     });
   } catch (err) {
     res.status(500).json({ message: "Failed to load stats" });
@@ -177,6 +189,66 @@ router.get("/activities/all", async (req, res) => {
   } catch (error) {
     console.error("Failed to fetch all activities", error);
     res.status(500).json({ message: "Failed to load activities" });
+  }
+});
+
+/* =====================================================
+   ADMIN - ORDERS FOR TRACKING
+   Returns recent orders across the system for admin overview
+   Optional query: ?limit=20
+===================================================== */
+router.get("/orders", async (req, res) => {
+  try {
+    const limit = Math.min(100, Number(req.query.limit) || 20);
+
+    const Order = require("../models/order-n-cancellation/Order");
+
+    // date range support: ?month=YYYY-MM or ?start=YYYY-MM-DD&end=YYYY-MM-DD
+    let filter = {};
+    if (req.query.month) {
+      const [y, m] = String(req.query.month).split("-").map(Number);
+      if (y && m) {
+        const start = new Date(y, m - 1, 1);
+        const end = new Date(y, m, 0, 23, 59, 59, 999);
+        filter.createdAt = { $gte: start, $lte: end };
+      }
+    } else if (req.query.start || req.query.end) {
+      const start = req.query.start ? new Date(req.query.start) : new Date(0);
+      const end = req.query.end ? new Date(req.query.end) : new Date();
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+        filter.createdAt = { $gte: start, $lte: end };
+      }
+    }
+
+    const orders = await Order.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("vendorOrders.slotId")
+      .populate("vendorOrders.foodItemIds")
+      .populate("studentId", "name email");
+
+    // map to safer client shape
+    const mapped = orders.map((order) => ({
+      _id: order._id,
+      orderId: order.orderId,
+      student: order.studentId ? { _id: order.studentId._id, name: order.studentId.name } : null,
+      vendorOrders: (order.vendorOrders || []).map((vo) => ({
+        vendorId: vo.vendorId,
+        slot: vo.slotId ? { _id: vo.slotId._id, slotDate: vo.slotId.slotDate, startTime: vo.slotId.startTime, endTime: vo.slotId.endTime } : null,
+        foods: Array.isArray(vo.foodItemIds) ? vo.foodItemIds.map((f) => ({ _id: f._id, name: f.name, price: f.price })) : [],
+        status: vo.status,
+      })),
+      slot: order.slotId || null,
+      foods: Array.isArray(order.foodItemIds) ? order.foodItemIds.map((f) => ({ _id: f._id, name: f.name, price: f.price })) : [],
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    }));
+
+    res.json(mapped);
+  } catch (err) {
+    console.error("admin/orders error:", err);
+    res.status(500).json({ message: "Failed to fetch orders" });
   }
 });
 

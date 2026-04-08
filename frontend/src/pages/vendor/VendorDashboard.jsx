@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bell,
   Menu,
@@ -11,9 +11,9 @@ import VendorSidebar from "./components/VendorSidebar";
 import { orderSubTabs } from "./common/configs/tabs";
 import DashboardOverviewTab from "./common/subtabs/DashboardOverviewTab";
 import OrdersTabContent from "./common/subtabs/OrdersTabContent";
-import FoodManagement from "./FoodManagement";
+import FoodManagement from "../vendor/FoodManagement";
 import api from "../../services/api";
-import { connectRealtime, disconnectRealtime } from "../../services/realtime";
+import { getSocket } from "../../services/realtime";
 
 function VendorDashboard({ user, onLogout }) {
   const location = useLocation();
@@ -122,9 +122,13 @@ function VendorDashboard({ user, onLogout }) {
           seenNotificationIdsRef.current.add(notifId);
 
           if (!notif.isRead && Notification.permission === "granted") {
-            new Notification(notif.title || "New order", {
-              body: notif.message || "You have a new order.",
-            });
+            try {
+              new Notification(notif.title || "New order", {
+                body: notif.message || "You have a new order.",
+              });
+            } catch (e) {
+              // ignore Notification construction errors in some browsers
+            }
           }
         });
       }
@@ -179,6 +183,15 @@ function VendorDashboard({ user, onLogout }) {
     }
   };
 
+  // stable callbacks
+  const handleMarkAllRead = useCallback(() => {
+    markAllNotificationsRead();
+  }, [vendorHeaders, unreadCount]);
+
+  const handleMarkOneRead = useCallback((id) => {
+    markSingleNotificationRead(id);
+  }, [vendorHeaders]);
+
   const openOrderFromNotification = async (notification) => {
     if (!notification) return;
 
@@ -196,6 +209,43 @@ function VendorDashboard({ user, onLogout }) {
       await markSingleNotificationRead(notification._id);
     }
   };
+
+  const NotificationItem = ({ item }) => (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => openOrderFromNotification(item)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") openOrderFromNotification(item);
+      }}
+      className={`px-4 py-3 border-b last:border-b-0 border-slate-100 ${
+        item.isRead ? "bg-white" : "bg-amber-50/60"
+      } cursor-pointer hover:bg-slate-50`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+          <Package className="w-4 h-4" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-slate-900 truncate">{item.title}</p>
+          <p className="text-xs text-slate-600 mt-0.5">{item.message}</p>
+          <p className="text-[11px] text-slate-400 mt-1">{new Date(item.createdAt).toLocaleString()}</p>
+        </div>
+        {!item.isRead && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleMarkOneRead(item._id);
+            }}
+            className="ml-auto text-xs text-slate-500 underline"
+            aria-label="Mark as read"
+          >
+            Mark read
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -218,7 +268,7 @@ function VendorDashboard({ user, onLogout }) {
   useEffect(() => {
     if (!user?._id) return;
 
-    const socket = connectRealtime({ role: "vendor", userId: user._id });
+    const socket = getSocket();
     if (!socket) return;
 
     const onNewNotification = (notification) => {
@@ -248,7 +298,6 @@ function VendorDashboard({ user, onLogout }) {
 
     return () => {
       socket.off("notification:new", onNewNotification);
-      disconnectRealtime();
     };
   }, [user?._id]);
 
@@ -260,7 +309,7 @@ function VendorDashboard({ user, onLogout }) {
 
   const renderLayoutPanel = () => {
     if (activeTab === "dashboard") {
-      return <DashboardOverviewTab />;
+      return <DashboardOverviewTab user={user} />;
     }
     if (activeTab === "menu") {
       return <FoodManagement user={user} />;

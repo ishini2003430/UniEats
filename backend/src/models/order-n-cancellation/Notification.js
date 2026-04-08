@@ -17,7 +17,7 @@ const notificationSchema = new mongoose.Schema(
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
     studentId: {
       type: mongoose.Schema.Types.ObjectId,

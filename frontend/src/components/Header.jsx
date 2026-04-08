@@ -6,7 +6,19 @@ export default function Header({ profile, user, onLogout }) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const profileData = profile || user;
+
+  // fallback to persisted user if props are missing (check sessionStorage first)
+  let storedUser = null;
+  try {
+    if (typeof window !== "undefined") {
+      const raw = sessionStorage.getItem("unieatsUser") || localStorage.getItem("unieatsUser");
+      storedUser = raw ? JSON.parse(raw) : null;
+    }
+  } catch (e) {
+    storedUser = null;
+  }
+
+  const profileData = profile || user || storedUser || {};
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -82,10 +94,10 @@ export default function Header({ profile, user, onLogout }) {
             >
               <div className="text-right hidden sm:block">
                 <p className="text-sm font-bold text-slate-900 leading-none">
-                  {profileData?.name || "Alex Johnson"}
+                  {profileData?.name || "Student"}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  {profileData?.email || "student@sliit.lk"}
+                  {profileData?.email || ""}
                 </p>
               </div>
               
@@ -99,8 +111,8 @@ export default function Header({ profile, user, onLogout }) {
               <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 z-[60]">
                 {/* Header Info (Mobile visibility) */}
                 <div className="px-5 py-4 border-b border-slate-50 sm:hidden">
-                  <p className="text-sm font-bold text-slate-900">{profileData?.name || "Alex Johnson"}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{profileData?.email}</p>
+                  <p className="text-sm font-bold text-slate-900">{profileData?.name || "Student"}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{profileData?.email || ""}</p>
                 </div>
 
                 <div className="py-2">

@@ -27,6 +27,14 @@ const io = new Server(server, {
 
 initSocket(io);
 
+// start auto-cancel monitor for unapproved orders
+try {
+  const { startAutoCancelMonitor } = require("./src/utils/autoCancel");
+  startAutoCancelMonitor();
+} catch (err) {
+  console.error("Failed to start auto-cancel monitor:", err);
+}
+
 // ✅ Middleware (ORDER MATTERS)
 app.use(cors());
 app.use(express.json());

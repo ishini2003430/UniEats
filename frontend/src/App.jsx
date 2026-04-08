@@ -1,21 +1,19 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Routes, Route } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Signin from "./pages/Register";
 import AdminLogin from "./pages/AdminLogin";
 
-import AdminDashboard from "./pages/AdminDashboard";
+import { connectRealtime, disconnectRealtime } from "./services/realtime";
 
-import VendorDashboard from "./pages/Vendor/VendorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import VendorDashboard from "./pages/vendor/VendorDashboard";
 
 import RatingsPage from "./pages/RatingsPage";
-
 import StudentProfile from "./pages/StudentProfile";
 import ReviewsPage from "./pages/ReviewsPage";
-
-
-import VendorDashboard from "./pages/vendor/VendorDashboard";
 
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
@@ -25,74 +23,128 @@ import MyFavorites from "./pages/student/MyFavorites";
 import HomePage from "./pages/student/HomePage";
 
 import FoodManagement from "./pages/vendor/FoodManagement";
+
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
 import Privacypage from "./pages/student/Privacypage";
-
-
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
-  // ✅ RESTORE USER FROM LOCAL STORAGE
+  // ✅ Restore user (localStorage ONLY — clean)
   useEffect(() => {
-    const storedUser = localStorage.getItem("unieatsUser");
-
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      // Use sessionStorage so each browser tab can have independent session state.
+      const raw = sessionStorage.getItem("unieatsUser") || localStorage.getItem("unieatsUser");
+      if (raw) {
+        setUser(JSON.parse(raw));
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
     }
-
     setLoading(false);
   }, []);
 
-  // ✅ LOGIN
-
-  // =========================
-  // 🔄 Restore session
-  // =========================
-  useEffect(() => {
-    try {
-      const savedUser = sessionStorage.getItem("unieatsUser");
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
-      }
-    } catch (error) {
-      console.error("Failed to restore user session:", error);
-    }
-  }, []);
-
-  // =========================
-  // 🔐 Login
-  // =========================
-
+  // ✅ Login
   const handleLogin = (nextUser) => {
     setUser(nextUser);
-    localStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+    // Persist to sessionStorage by default so other tabs remain independent.
+    try {
+      sessionStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+    } catch (e) {
+      // fallback
+      localStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+    }
   };
 
-
-  
-
-  // =========================
-  // 🚪 Logout
-  // =========================
-
+  // ✅ Logout
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem("unieatsUser");
+    try {
+      sessionStorage.removeItem("unieatsUser");
+    } catch (e) {
+      localStorage.removeItem("unieatsUser");
+    }
   };
 
+  useEffect(() => {
+    if (!user?._id) return;
 
-  // ✅ PREVENT FLICKER ON REFRESH
-  if (loading) return null;
+    const socket = connectRealtime({ role: user.role, userId: user._id });
+
+    const onNewNotification = (notification) => {
+      try {
+        if (typeof window !== "undefined" && "Notification" in window) {
+          if (Notification.permission === "default") {
+            Notification.requestPermission().catch(() => {});
+          }
+          if (Notification.permission === "granted") {
+          new Notification(notification.title || "New notification", {
+            body: notification.message || "You have a new notification",
+          });
+          }
+        }
+      } catch (err) {
+        console.error("notification handler error:", err);
+      }
+    };
+
+    if (socket) socket.on("notification:new", onNewNotification);
+
+    return () => {
+      if (socket) socket.off("notification:new", onNewNotification);
+      disconnectRealtime();
+    };
+  }, [user?._id]);
+
+  const location = useLocation();
+
+  if (loading) return <div>Loading...</div>;
+  const publicPaths = [
+    "/",
+    "/login",
+    "/register",
+    "/admin/login",
+    "/helpcenter",
+    "/terms",
+    "/privacy",
+  ];
+
+  // If the current path is a public route, allow it to render even when a user session exists.
+  // This enables visiting `/admin/login` (or other public pages) in the same tab without being forced
+  // into the currently-logged-in role's dashboard.
+  if (publicPaths.includes(location.pathname)) {
+    return (
+      <Routes>
+        <Route path="/" element={<Login onLogin={handleLogin} />} />
+        <Route path="/login" element={<Login onLogin={handleLogin} />} />
+        <Route path="/register" element={<Signin />} />
+
+        <Route
+          path="/admin/login"
+          element={<AdminLogin onLogin={handleLogin} />}
+        />
+
+        {/* Public Pages */}
+        <Route path="/helpcenter" element={<HelpCenter />} />
+        <Route path="/rate-us" element={<ReviewsPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<Privacypage />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Login onLogin={handleLogin} />} />
+      </Routes>
+    );
+  }
 
   // ================= LOGGED IN =================
   if (user) {
+    
+
     return (
       <Routes>
-        {/* ADMIN */}
+        {/* ================= ADMIN ================= */}
         {user.role === "admin" && (
           <Route
             path="*"
@@ -102,25 +154,7 @@ function App() {
           />
         )}
 
-        {/* VENDOR */}
-
-  // =========================
-  // ✅ AUTHENTICATED ROUTES
-  // =========================
-  if (user) {
-    return (
-      <Routes>
-
-        {/* ================= ADMIN ================= */}
-        {user.role === "admin" && (
-          <Route
-            path="*"
-            element={<AdminDashboard user={user} onLogout={handleLogout} />}
-          />
-        )}
-
         {/* ================= VENDOR ================= */}
-
         {user.role === "vendor" && (
           <>
             <Route
@@ -132,7 +166,9 @@ function App() {
 
             <Route
               path="/food-management"
-              element={<VendorDashboard user={user} onLogout={handleLogout} />}
+              element={
+                <VendorDashboard user={user} onLogout={handleLogout} />
+              }
             />
 
             <Route
@@ -144,27 +180,18 @@ function App() {
           </>
         )}
 
-
-        {/* STUDENT */}
-        {user.role === "student" && (
-          <>
-            {/* Home */}
-
         {/* ================= STUDENT ================= */}
         {user.role === "student" && (
           <>
-            {/* Default page */}
-
+            {/* Home */}
             <Route
               path="/"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-
             <Route
               path="/home"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-
 
             {/* Profile */}
             <Route
@@ -175,8 +202,6 @@ function App() {
             />
 
             {/* Vendors */}
-
-
             <Route
               path="/vendor-list"
               element={
@@ -191,14 +216,10 @@ function App() {
               }
             />
 
+            {/* Orders */}
             <Route
               path="/student/order"
               element={<StudentOrderProcessPage user={user} />}
-            />
-
-            <Route
-              path="/student/favorites"
-              element={<MyFavorites user={user} onLogout={handleLogout} />}
             />
 
             <Route
@@ -206,6 +227,13 @@ function App() {
               element={<MyOrdersPage user={user} />}
             />
 
+            {/* Favorites */}
+            <Route
+              path="/student/favorites"
+              element={
+                <MyFavorites user={user} onLogout={handleLogout} />
+              }
+            />
 
             {/* Ratings */}
             <Route
@@ -221,51 +249,27 @@ function App() {
               }
             />
 
+            {/* Extra Pages */}
+            <Route path="/helpcenter" element={<HelpCenter />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<Privacypage />} />
+
             {/* Fallback */}
-
-            {/* fallback */}
-
             <Route
               path="*"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-
-
-
-
-            <Route path="/" element={<HomePage user={user} onLogout={handleLogout} />} />
-            <Route path="/home" element={<HomePage user={user} onLogout={handleLogout} />} />
-            <Route path="/profile" element={<StudentProfile user={user} onLogout={handleLogout} />} />
-            <Route path="/reviews" element={<ReviewsPage user={user} onLogout={handleLogout} />} />
-            <Route path="/vendor-list" element={<VendorList />} />
-            <Route path="/vendor/:vendorId" element={<VendorMenu user={user} onLogout={handleLogout} />} />
-            <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
-            <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-
-            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />/helpcenter
-            
-
-            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
-
-
-
           </>
         )}
-
       </Routes>
     );
   }
 
-
   // ================= LOGGED OUT =================
-
-  // =========================
-  // ❌ NOT LOGGED IN ROUTES
-  // =========================
-
   return (
     <Routes>
       <Route path="/" element={<Login onLogin={handleLogin} />} />
+      <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
 
       <Route
@@ -273,15 +277,14 @@ function App() {
         element={<AdminLogin onLogin={handleLogin} />}
       />
 
-      {/* fallback */}
-
-      <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
-
-      <Route path="*" element={<Login onLogin={handleLogin} />} />
+      {/* Public Pages */}
       <Route path="/helpcenter" element={<HelpCenter />} />
       <Route path="/rate-us" element={<ReviewsPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<Privacypage />} />
+
+      {/* Fallback */}
+      <Route path="*" element={<Login onLogin={handleLogin} />} />
     </Routes>
   );
 }
