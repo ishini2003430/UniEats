@@ -12,6 +12,7 @@ const {
   buildStudentOrderStatusUpdateEmail,
 } = require("../../utils/emailTemplates");
 
+
 const CANCELLATION_WINDOW_MINUTES = Number(process.env.ORDER_CANCELLATION_WINDOW_MINUTES || 10);
 
 const isHoldActive = (slot) => {
@@ -963,3 +964,39 @@ const segmentIndex = vendorOrders.findIndex(
   }
 };
 
+// backend/src/controllers/order-n-cancellation/orderController.js
+
+
+exports.placeOrder = async (req, res) => {
+  try {
+    // 1. Existing logic to save the order
+    const newOrder = await Order.create(req.body);
+    const user = await User.findById(newOrder.studentId);
+
+    // 2. Calculate and update points
+    const pointsGained = Math.floor(newOrder.totalAmount / 10);
+    const oldPoints = user.loyaltyPoints || 0;
+    const newPoints = oldPoints + pointsGained;
+
+    user.loyaltyPoints = newPoints;
+    await user.save(); // 'await' works because the function is 'async'
+
+    // 3. Milestone Trigger: Check if they just crossed 1000
+    if (oldPoints < 1000 && newPoints >= 1000) {
+      await Notification.create({
+        recipientRole: "student",
+        recipientId: user._id,
+        studentId: user._id,
+        vendorId: newOrder.vendorId, // Using the current order's vendor
+        orderId: newOrder._id,       // Using the current order's ID
+        type: "MILESTONE_REACHED",
+        title: "50% Discount Unlocked! 🎁",
+        message: `Congrats ${user.name}! You hit 1000 points. Use code UNIEATS-50 for your next meal!`,
+      });
+    }
+
+    res.status(201).json({ message: "Order placed and points updated", newPoints });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

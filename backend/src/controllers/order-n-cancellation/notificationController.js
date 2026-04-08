@@ -177,3 +177,25 @@ exports.markAllStudentNotificationsRead = async (req, res) => {
     return res.status(500).json({ message: "Failed to mark notifications as read" });
   }
 };
+
+
+
+// Function to be called from your Order Controller
+exports.createMilestoneNotification = async ({ student, vendorId, orderId, newPoints }) => {
+  try {
+    // We only trigger this if they just hit the 1000 mark
+    await Notification.create({
+      recipientRole: "student",
+      recipientId: student._id,
+      studentId: student._id,
+      vendorId: vendorId, 
+      orderId: orderId,
+      type: "MILESTONE_REACHED",
+      title: "Milestone Reached! 🎉",
+      message: `Congratulations ${student.name}! You've earned ${newPoints} points. Enjoy 50% off your next meal!`,
+    });
+    console.log("Milestone notification created for:", student._id);
+  } catch (error) {
+    console.error("Error creating milestone notification:", error);
+  }
+};

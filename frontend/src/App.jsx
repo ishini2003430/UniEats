@@ -25,7 +25,7 @@ import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
 
-import FoodManagement from "./pages/vendor/FoodManagement";
+
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
 import Privacypage from "./pages/student/Privacypage";

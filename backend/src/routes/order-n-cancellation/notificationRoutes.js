@@ -19,4 +19,6 @@ router.get("/student", requireStudent, getStudentNotifications);
 router.patch("/student/:id/read", requireStudent, markStudentNotificationRead);
 router.patch("/student/read-all", requireStudent, markAllStudentNotificationsRead);
 
+
+
 module.exports = router;
