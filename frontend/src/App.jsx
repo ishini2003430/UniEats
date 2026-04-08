@@ -13,8 +13,8 @@ import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
 import MyFavorites from "./pages/student/MyFavorites";
 import HomePage from "./pages/student/HomePage";
-
-import FoodManagement from "./pages/vendor/FoodManagement";
+import ReviewsPage from './pages/ReviewsPage'; // Adjust the path based on your folder structure
+import StudentProfile from "./pages/StudentProfile";
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
 import Privacypage from "./pages/student/Privacypage";
@@ -169,6 +169,7 @@ function App() {
       <Route path="/rate-us" element={<ReviewsPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<Privacypage />} />
+      <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
     </Routes>
   );
 }
