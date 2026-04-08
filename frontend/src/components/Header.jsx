@@ -73,6 +73,7 @@ export default function Header({ profile, user, onLogout }) {
               <ShoppingCart className="w-5 h-5" />
             </button>
           </div>
+          
 
           {/* User Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>

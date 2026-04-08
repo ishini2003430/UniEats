@@ -25,7 +25,16 @@ function Register({ onLogin }) {
 
   const validatePhone = (phone) => /^[0-9]{10}$/.test(phone);
 
-  const validatePassword = (password) => password.length >= 6;
+  // High-Security Password Validation
+  const validatePassword = (password) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    return password.length >= minLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
+  };
 
   /* ---------------- SUBMIT ---------------- */
   const handleSubmit = async (e) => {
@@ -43,7 +52,7 @@ function Register({ onLogin }) {
     }
 
     if (!validatePassword(password)) {
-      return setError("Password must be at least 6 characters");
+      return setError("Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.");
     }
 
     if (contactNumber && !validatePhone(contactNumber)) {
@@ -188,8 +197,10 @@ function Register({ onLogin }) {
           <input type="password" placeholder="Password" value={password}
             onChange={(e) => setPassword(e.target.value)} className="input-modern" />
 
-          {password && password.length < 6 && (
-            <p className="text-red-400 text-xs">Min 6 characters required</p>
+          {password && !validatePassword(password) && (
+            <p className="text-red-400 text-[10px] leading-tight">
+              Min 8 chars, 1 uppercase, 1 lowercase, 1 number & 1 special char
+            </p>
           )}
 
           <input type="tel" placeholder="Contact Number" value={contactNumber}
