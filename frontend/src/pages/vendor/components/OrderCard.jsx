@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom"; // Added for navigation
 import OrderTimeline from "./OrderTimeline";
 
 const statusClass = (status) => {
@@ -22,11 +23,20 @@ const getCodesLabel = (order) => {
 };
 
 export default function OrderCard({ order, onCancel }) {
+  const navigate = useNavigate();
+
+  // Function to handle navigation to the Reviews page
+  const handleRateClick = () => {
+    // We pass the order details so the Reviews page can auto-fill 
+    // the Vendor Name and Meal details if needed.
+    navigate("/reviews", { state: { orderData: order } });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.02 }}
+      whileHover={{ scale: 1.01 }}
       className="border rounded-2xl p-6 bg-white shadow-sm hover:shadow-md transition"
     >
       {/* HEADER */}
@@ -38,7 +48,7 @@ export default function OrderCard({ order, onCancel }) {
           </p>
         </div>
 
-        <span className={`px-3 py-1 text-xs rounded-full ${statusClass(order.status)}`}>
+        <span className={`px-3 py-1 text-xs rounded-full font-medium ${statusClass(order.status)}`}>
           {order.status}
         </span>
       </div>
@@ -46,20 +56,34 @@ export default function OrderCard({ order, onCancel }) {
       {/* TIMELINE */}
       <OrderTimeline status={order.status} />
 
-      {/* FOOTER */}
-      <div className="flex justify-between items-center mt-6">
+      {/* FOOTER & ACTIONS */}
+      <div className="flex justify-between items-end mt-6 pt-4 border-t border-slate-50">
         <div>
-          <p className="text-xs text-slate-500">Pickup Code</p>
-          <p className="font-semibold">{getCodesLabel(order)}</p>
+          <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Pickup Code</p>
+          <p className="font-mono text-sm font-bold text-orange-600">{getCodesLabel(order)}</p>
         </div>
 
-        <button
-          onClick={() => onCancel(order)}
-          disabled={order.status !== "Pending"}
-          className="px-4 py-2 bg-rose-500 text-white rounded-lg disabled:opacity-40"
-        >
-          Cancel
-        </button>
+        <div className="flex gap-2">
+          {/* SHOW CANCEL ONLY IF PENDING */}
+          {order.status === "Pending" && (
+            <button
+              onClick={() => onCancel(order)}
+              className="px-4 py-2 text-xs font-bold bg-rose-50 text-rose-600 rounded-lg hover:bg-rose-100 transition"
+            >
+              Cancel Order
+            </button>
+          )}
+
+          {/* ✅ NEW: SHOW RATING BUTTON ONLY IF COMPLETED */}
+          {order.status === "Completed" && (
+            <button
+              onClick={handleRateClick}
+              className="px-4 py-2 text-xs font-bold bg-orange-500 text-white rounded-lg shadow-md shadow-orange-100 hover:bg-orange-600 transition flex items-center gap-2"
+            >
+              <span>⭐</span> Rate Order
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
