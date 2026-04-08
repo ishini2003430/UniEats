@@ -2,7 +2,7 @@ const express = require("express");
 const upload = require("../../middleware/upload");
 const authMiddleware = require("../../middleware/authMiddleware");
 const User = require("../../src/models/User");
-const ActivityLog = require("../models/ActivityLog"); // ✅ ADD THIS
+const ActivityLog = require("../../src/models/ActivityLog"); // ✅ ADD THIS
 
 const router = express.Router();
 
