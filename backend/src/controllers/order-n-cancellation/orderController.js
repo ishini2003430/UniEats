@@ -314,6 +314,13 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         })
       );
     });
+    const summaryLines = vendorContexts.map((ctx, index) => {
+      const vendorUser = vendorUserMap.get(String(ctx.vendorId));
+      const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
+      const slotLabel = formatSlotLabel(ctx.slot);
+      const foodNames = ctx.foods.map((item) => item.name).join(", ");
+      return `${index + 1}. Vendor: ${vendorLabel} | Slot: ${slotLabel} | Items: ${foodNames}`;
+    });
 
     const studentNotification = {
       recipientRole: "student",
@@ -323,7 +330,7 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
       orderId: order._id,
       type: "ORDER_PLACED",
       title: "Order placed successfully",
-      message: `Order ${order.orderId} was placed for ${vendorContexts.length} vendor(s).`,
+      message: `Order ${order.orderId} placed:\n${summaryLines.join("\\n")}`,
     };
 
     const createdNotifications = await Notification.insertMany([...vendorNotificationDocs, studentNotification]);
@@ -349,15 +356,6 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         },
       });
     });
-
-    const summaryLines = vendorContexts.map((ctx, index) => {
-      const vendorUser = vendorUserMap.get(String(ctx.vendorId));
-      const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
-      const slotLabel = formatSlotLabel(ctx.slot);
-      const foodNames = ctx.foods.map((item) => item.name).join(", ");
-      return `${index + 1}. Vendor: ${vendorLabel} | Slot: ${slotLabel} | Items: ${foodNames}`;
-    });
-
     const studentEmail = buildStudentOrderConfirmationEmail({
       studentLabel,
       orderId: order.orderId,
