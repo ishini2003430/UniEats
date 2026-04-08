@@ -111,9 +111,6 @@ function App() {
     "/privacy",
   ];
 
-  // If the current path is a public route, allow it to render even when a user session exists.
-  // This enables visiting `/admin/login` (or other public pages) in the same tab without being forced
-  // into the currently-logged-in role's dashboard.
   if (publicPaths.includes(location.pathname)) {
     return (
       <Routes>
