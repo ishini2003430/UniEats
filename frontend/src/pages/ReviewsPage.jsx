@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Header from '../../src/components/Header';
 import Footer from '../../src/components/Footer';
 
 const ReviewsPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [vendors, setVendors] = useState([]);
@@ -20,14 +24,37 @@ const ReviewsPage = () => {
     comment: "" 
   });
   const [editingId, setEditingId] = useState(null);
+  const [isAutoFilled, setIsAutoFilled] = useState(false);
 
-  // Get basic user info from localStorage
   const user = JSON.parse(localStorage.getItem('user')) || { 
     name: "Alex Johnson", 
     email: "student@sliit.lk" 
   };
 
   const ratingLabels = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very Good', 5: 'Great' };
+
+  /* ---------------- AUTO-FILL LOGIC ---------------- */
+  useEffect(() => {
+    if (location.state?.orderData) {
+      const order = location.state.orderData;
+      
+      // Extract all meal names from the order items array
+      const mealNames = order.items?.map(item => item.name).join(", ") || "";
+      
+      // Handle vendorId whether it's an object (populated) or just a string
+      const vId = order.vendorId?._id || order.vendorId;
+      const vName = order.vendorId?.vendorName || order.vendorName || "Selected Vendor";
+
+      setFormData({
+        vendorId: vId,
+        vendorName: vName, 
+        mealName: mealNames,
+        comment: ""
+      });
+      setIsAutoFilled(true);
+      window.scrollTo({ top: 400, behavior: 'smooth' });
+    }
+  }, [location.state]);
 
   useEffect(() => {
     fetchProfile();
@@ -44,13 +71,8 @@ const ReviewsPage = () => {
     }
   };
 
-
-
-
-  
   const fetchVendors = async () => {
     try {
-      // Adjusted path to match your Auth Route for vendors
       const response = await axios.get('http://localhost:5000/api/users/vendors'); 
       const formattedVendors = response.data.map(v => ({
         _id: v._id,
@@ -58,7 +80,7 @@ const ReviewsPage = () => {
       }));
       setVendors(formattedVendors);
     } catch (err) {
-      console.error("Failed to fetch vendors from DB, using fallbacks", err);
+      console.error("Failed to fetch vendors", err);
       setVendors([
         { _id: "v1", name: "Campus Grill (Offline)" },
         { _id: "v2", name: "Basement Canteen (Offline)" }
@@ -94,7 +116,11 @@ const ReviewsPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (rating === 0) return alert("Please select a rating");
+    
+    if (!formData.vendorId) return alert("Please select a vendor.");
+    if (formData.mealName.trim().length < 3) return alert("Enter a valid meal name.");
+    if (rating === 0) return alert("Please select a star rating.");
+    if (formData.comment.trim().length < 10) return alert("Comment must be at least 10 characters.");
     
     const reviewData = { 
       ...formData, 
@@ -113,14 +139,17 @@ const ReviewsPage = () => {
       }
       setFormData({ vendorName: "", vendorId: "", mealName: "", comment: "" });
       setRating(0);
+      setIsAutoFilled(false);
       fetchReviews();
+      alert("Review posted successfully!");
     } catch (err) {
-      alert("Submission failed. Check backend connection.");
+      alert("Submission failed.");
     }
   };
 
   const handleEdit = (review) => {
     setEditingId(review._id);
+    setIsAutoFilled(false);
     setFormData({ 
       vendorName: review.vendorName, 
       vendorId: review.vendorId, 
@@ -128,7 +157,7 @@ const ReviewsPage = () => {
       comment: review.comment 
     });
     setRating(review.rating);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 400, behavior: 'smooth' });
   };
 
   const handleDelete = async (id) => {
@@ -145,23 +174,19 @@ const ReviewsPage = () => {
   const getAverageRatings = () => {
     const vendorRatings = {};
     reviews.forEach((review) => {
-      const vendorId = review.vendorId || "unknown";
-      if (!vendorRatings[vendorId]) {
-        vendorRatings[vendorId] = {
-          total: 0,
-          count: 0,
-          name: getVendorName(review.vendorId, review.vendorName)
-        };
+      const vId = review.vendorId || "unknown";
+      if (!vendorRatings[vId]) {
+        vendorRatings[vId] = { total: 0, count: 0, name: getVendorName(review.vendorId, review.vendorName) };
       }
-      vendorRatings[vendorId].total += review.rating;
-      vendorRatings[vendorId].count += 1;
+      vendorRatings[vId].total += review.rating;
+      vendorRatings[vId].count += 1;
     });
 
-    return Object.keys(vendorRatings).map((vendorId) => ({
-      vendorId,
-      vendorName: vendorRatings[vendorId].name,
-      average: parseFloat((vendorRatings[vendorId].total / vendorRatings[vendorId].count).toFixed(1)),
-      count: vendorRatings[vendorId].count
+    return Object.keys(vendorRatings).map((vId) => ({
+      vendorId: vId,
+      vendorName: vendorRatings[vId].name,
+      average: parseFloat((vendorRatings[vId].total / vendorRatings[vId].count).toFixed(1)),
+      count: vendorRatings[vId].count
     }));
   };
 
@@ -200,15 +225,27 @@ const ReviewsPage = () => {
         </div>
 
         {/* Input Form */}
-        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mb-10">
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-8">
-            <span className="text-orange-500">☆</span> {editingId ? "Update Your Review" : "Rate a Meal"}
-          </h2>
+        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mb-10 ring-2 ring-orange-50">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <span className="text-orange-500">☆</span> {editingId ? "Update Your Review" : isAutoFilled ? "Rating Your Recent Order" : "Rate a Meal"}
+            </h2>
+            {isAutoFilled && (
+               <button 
+                onClick={() => {setFormData({vendorName:"", vendorId:"", mealName:"", comment:""}); setIsAutoFilled(false);}}
+                className="text-[10px] font-bold text-gray-400 underline uppercase"
+               >
+                 Clear Auto-fill
+               </button>
+            )}
+          </div>
+          
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Vendor</label>
                 <select 
+                  disabled={isAutoFilled}
                   value={formData.vendorId} 
                   onChange={(e) => {
                     const selectedId = e.target.value;
@@ -219,8 +256,7 @@ const ReviewsPage = () => {
                       vendorName: selectedVendor?.name || "" 
                     });
                   }}
-                  className="w-full p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 font-semibold text-sm outline-none focus:bg-white focus:border-orange-200 transition-all"
-                  required
+                  className={`w-full p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 font-semibold text-sm outline-none transition-all ${isAutoFilled ? 'opacity-70 cursor-not-allowed' : 'focus:bg-white focus:border-orange-200'}`}
                 >
                   <option value="">Select vendor...</option>
                   {vendors.map(v => <option key={v._id} value={v._id}>{v.name}</option>)}
@@ -234,12 +270,10 @@ const ReviewsPage = () => {
                   value={formData.mealName}
                   onChange={(e) => setFormData({...formData, mealName: e.target.value})}
                   className="w-full p-3.5 rounded-xl border border-gray-100 bg-gray-50/50 font-semibold text-sm outline-none focus:bg-white focus:border-orange-200 transition-all"
-                  required
                 />
               </div>
             </div>
             
-            {/* Rating Stars */}
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Rating</label>
               <div className="flex items-center gap-1">
@@ -261,14 +295,16 @@ const ReviewsPage = () => {
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Your Review</label>
               <textarea 
                 className="w-full p-4 rounded-xl border border-gray-100 bg-gray-50/50 min-h-[120px] text-sm outline-none focus:bg-white focus:border-orange-200 transition-all resize-none"
-                placeholder="Share your experience..."
+                placeholder="Share your experience (min 10 characters)..."
                 value={formData.comment}
                 onChange={(e) => setFormData({...formData, comment: e.target.value})}
                 maxLength="500"
-                required
               />
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+                {editingId && (
+                    <button type="button" onClick={() => {setEditingId(null); setFormData({vendorName:"", vendorId:"", mealName:"", comment:""}); setRating(0);}} className="text-[10px] font-bold text-gray-400 uppercase px-6">Cancel</button>
+                )}
                 <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all flex items-center gap-2 active:scale-95 text-[11px] uppercase tracking-widest">
                   <span className="text-sm">🚀</span> {editingId ? "Update Review" : "Submit Review"}
                 </button>

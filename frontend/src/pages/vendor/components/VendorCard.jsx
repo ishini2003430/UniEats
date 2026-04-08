@@ -12,9 +12,7 @@ export default function VendorCard({ vendor }) {
 
   const vendorId = vendor._id || vendor.id;
   const vendorName = vendor.vendorName || vendor.name || 'Unknown Vendor';
-  const vendorImage = vendor.vendorLogo 
-    ? `http://localhost:5000/uploads/${vendor.vendorLogo}`
-    : image1;
+  const vendorImage = vendor.vendorLogo || image1;
   
   const isActive = vendor.status === 'active';
   const isPending = vendor.status === 'pending';
