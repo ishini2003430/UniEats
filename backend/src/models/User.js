@@ -47,6 +47,29 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+  // Student-specific fields
+contactNumber: {
+  type: String,
+  default: null,
+},
+dietaryPreferences: { type: [String], default: [] },
+
+favoriteMeals: {
+  type: [String],
+  default: [],
+},
+loyaltyPoints: {
+  type: Number,
+  default: 0,
+},
+
+
+
+
+
+
+
+
     // Account status
     status: {
       type: String,

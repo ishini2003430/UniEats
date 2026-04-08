@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import {
   ChevronDown,
   ClipboardList,
@@ -20,6 +21,7 @@ export default function VendorSidebar({
   onLogout,
   user,
 }) {
+  const navigate = useNavigate();
   const displayName = user?.name || "Vendor User";
   const displayEmail = user?.email || "vendor@unieats.com";
   const initials = (displayName || "VU")
@@ -88,9 +90,9 @@ export default function VendorSidebar({
               : "hover:bg-slate-800/50 hover:text-white"
           }`}
           onClick={() => {
-            setTabInUrl("menu");
-            if (window.innerWidth < 1024) setIsSidebarOpen(false);
-          }}
+  navigate("/food-management");
+  if (window.innerWidth < 1024) setIsSidebarOpen(false);
+}}
         >
           {activeTab === "menu" && (
             <motion.div

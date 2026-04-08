@@ -17,6 +17,11 @@ const FoodSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    originalPrice: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     category: {
       type: String,
       trim: true,
@@ -43,10 +48,19 @@ const FoodSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    isAvailable: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+FoodSchema.pre("save", function (next) {
+  this.isAvailable = this.quantity > 0;
+});
+
 
 module.exports = mongoose.models.Food || mongoose.model("Food", FoodSchema);
