@@ -39,7 +39,10 @@ exports.getFavorites = async (req, res) => {
     }
 
     // populate favorites logic pulls the entire 'Food' reference graph
-    const user = await User.findById(userId).populate("favorites");
+    const user = await User.findById(userId).populate({
+      path: "favorites",
+      populate: { path: "vendorId", select: "name vendorName email" }
+    });
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

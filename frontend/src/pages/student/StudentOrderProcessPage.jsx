@@ -245,7 +245,7 @@ export default function StudentOrderProcessPage({ user }) {
 ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 py-8 font-sans">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="absolute -top-20 -right-16 h-56 w-56 rounded-full bg-amber-200/40 blur-3xl" />
@@ -504,13 +504,18 @@ export default function StudentOrderProcessPage({ user }) {
         Back
       </button>
 
-      <button
+      <motion.button
         onClick={placeOrder}
         disabled={placingOrder}
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        className="group relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/25 overflow-hidden transition-all disabled:opacity-50"
       >
-        {placingOrder ? "Placing Order..." : "Place Order"}
-      </button>
+        <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
+        <span className="relative flex items-center gap-2 drop-shadow-sm">
+          {placingOrder ? "Placing Order..." : "Place Order"}
+        </span>
+      </motion.button>
     </div>
   </div>
 )}

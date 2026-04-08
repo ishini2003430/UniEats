@@ -50,7 +50,8 @@ export default function Header({ profile, user, onLogout }) {
 
         {/* CENTER: Navigation */}
         <nav className="hidden lg:flex items-center gap-8">
-          <button onClick={() => navigate('/menu')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Menu</button>
+          <button onClick={() => navigate('/')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Home</button>
+          <button onClick={() => navigate('/vendor-list')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Vendors</button>
           <button onClick={() => navigate('/student/favorites')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Favorites</button>
           <button onClick={() => navigate('/my-orders')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Orders</button>
           <button onClick={() => navigate('/offers')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Offers</button>

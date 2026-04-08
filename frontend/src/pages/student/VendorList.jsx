@@ -70,12 +70,15 @@ export default function VendorList({ user, onLogout }) {
                                     .getElementById("vendors-section")
                                     ?.scrollIntoView({ behavior: "smooth" });
                                 }}
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-slate-900 text-white font-bold text-lg shadow-xl hover:bg-slate-800 hover:shadow-2xl transition-all duration-300 group"
+                                whileHover={{ scale: 1.03 }}
+                                whileTap={{ scale: 0.97 }}
+                                className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-lg font-bold shadow-xl shadow-orange-500/25 overflow-hidden transition-all mt-4"
                             >
-                                Browse Vendors
-                                <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
+                                <span className="relative flex items-center gap-2 drop-shadow-sm">
+                                  Browse Vendors
+                                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                </span>
                             </motion.button>
                         </motion.div>
 
