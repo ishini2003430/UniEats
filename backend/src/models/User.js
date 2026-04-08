@@ -38,6 +38,14 @@ const userSchema = new mongoose.Schema(
       type: String, // filename or URL
       default: null,
     },
+    
+    // Student favorites array
+    favorites: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Food",
+      },
+    ],
 
   // Student-specific fields
 contactNumber: {

@@ -35,8 +35,7 @@ const FoodSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      trim: true,
-      default: "",
+      required: true,
     },
     promotionPercentage: {
       type: Number,

@@ -6,7 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import VendorSidebar from "./components/VendorSidebar";
 import { orderSubTabs } from "./common/configs/tabs";
 import DashboardOverviewTab from "./common/subtabs/DashboardOverviewTab";
@@ -15,7 +15,8 @@ import FoodManagement from "./FoodManagement";
 import api from "../../services/api";
 import { connectRealtime, disconnectRealtime } from "../../services/realtime";
 
-function VendorDashboard({ user, onLogout, forceTab }) {
+function VendorDashboard({ user, onLogout }) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -26,11 +27,12 @@ function VendorDashboard({ user, onLogout, forceTab }) {
   const seenNotificationIdsRef = useRef(new Set());
 
   const currentTabParam = searchParams.get("tab");
-  const activeTab =
-  forceTab ||
-  (["dashboard", "orders", "menu"].includes(currentTabParam)
-    ? currentTabParam
-    : "dashboard");
+  const isFoodManagementRoute = location.pathname === "/food-management";
+  const activeTab = isFoodManagementRoute
+    ? "menu"
+    : currentTabParam === "orders"
+      ? "orders"
+      : "dashboard";
 
   const currentOrderSubTabParam = searchParams.get("ordersTab");
   const isValidOrderSubTab = orderSubTabs.some((tab) => tab.id === currentOrderSubTabParam);
@@ -39,16 +41,38 @@ function VendorDashboard({ user, onLogout, forceTab }) {
     : orderSubTabs[0].id;
 
   const setTabInUrl = (tabId) => {
-    navigate(`/?tab=${tabId}`);
+    if (tabId === "menu") {
+      navigate("/food-management");
+      return;
+    }
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", tabId);
+
+    if (tabId === "orders") {
+      if (!next.get("ordersTab")) {
+        next.set("ordersTab", orderSubTabs[0].id);
+      }
+    } else {
+      next.delete("ordersTab");
+    }
+
+    if (location.pathname !== "/dashboard") {
+      navigate(`/dashboard?${next.toString()}`);
+      return;
+    }
+    setSearchParams(next);
   };
 
   const setOrderSubTabInUrl = (subTabId) => {
-    navigate(`/?tab=orders&ordersTab=${subTabId}`);
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", "orders");
+    next.set("ordersTab", subTabId);
+    setSearchParams(next);
   };
 
   const pageTitle = useMemo(() => {
+    if (activeTab === "menu") return "Menu";
     if (activeTab === "orders") return "Orders";
-    if (activeTab === "menu") return "Food Management";
     return "Dashboard";
   }, [activeTab]);
 
@@ -160,11 +184,13 @@ function VendorDashboard({ user, onLogout, forceTab }) {
 
     setIsNotifOpen(false);
 
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", "orders");
+    next.set("ordersTab", "orders-management");
     if (notification.orderId) {
-      navigate(`/?tab=orders&ordersTab=orders-management&notifyOrderId=${notification.orderId}`);
-    } else {
-      navigate(`/?tab=orders&ordersTab=orders-management`);
+      next.set("notifyOrderId", String(notification.orderId));
     }
+    setSearchParams(next);
 
     if (!notification.isRead) {
       await markSingleNotificationRead(notification._id);

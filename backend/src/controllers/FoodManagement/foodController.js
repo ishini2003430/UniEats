@@ -38,7 +38,7 @@ exports.createFood = async (req, res) => {
     
     let imageUrl = req.body.imageUrl || "";
     if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
+      imageUrl = req.file.path; // Cloudinary URL
     }
 
     const promotionPercentage = calculatePromotion(price, originalPrice);
@@ -107,7 +107,7 @@ exports.updateFood = async (req, res) => {
     
     let imageUrl = req.body.imageUrl || "";
     if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
+      imageUrl = req.file.path; // Cloudinary URL
     }
 
     const promotionPercentage = calculatePromotion(price, originalPrice);
