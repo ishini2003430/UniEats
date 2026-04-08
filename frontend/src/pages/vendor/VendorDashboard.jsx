@@ -6,7 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import VendorSidebar from "./components/VendorSidebar";
 import { orderSubTabs } from "./common/configs/tabs";
 import DashboardOverviewTab from "./common/subtabs/DashboardOverviewTab";
@@ -16,7 +16,9 @@ import api from "../../services/api";
 import { connectRealtime, disconnectRealtime } from "../../services/realtime";
 
 function VendorDashboard({ user, onLogout }) {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -25,7 +27,12 @@ function VendorDashboard({ user, onLogout }) {
   const seenNotificationIdsRef = useRef(new Set());
 
   const currentTabParam = searchParams.get("tab");
-  const activeTab = currentTabParam === "orders" ? "orders" : "dashboard";
+  const isFoodManagementRoute = location.pathname === "/food-management";
+  const activeTab = isFoodManagementRoute
+    ? "menu"
+    : currentTabParam === "orders"
+      ? "orders"
+      : "dashboard";
 
   const currentOrderSubTabParam = searchParams.get("ordersTab");
   const isValidOrderSubTab = orderSubTabs.some((tab) => tab.id === currentOrderSubTabParam);
@@ -34,6 +41,10 @@ function VendorDashboard({ user, onLogout }) {
     : orderSubTabs[0].id;
 
   const setTabInUrl = (tabId) => {
+    if (tabId === "menu") {
+      navigate("/food-management");
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set("tab", tabId);
 
@@ -45,6 +56,10 @@ function VendorDashboard({ user, onLogout }) {
       next.delete("ordersTab");
     }
 
+    if (location.pathname !== "/dashboard") {
+      navigate(`/dashboard?${next.toString()}`);
+      return;
+    }
     setSearchParams(next);
   };
 
@@ -56,6 +71,7 @@ function VendorDashboard({ user, onLogout }) {
   };
 
   const pageTitle = useMemo(() => {
+    if (activeTab === "menu") return "Menu";
     if (activeTab === "orders") return "Orders";
     return "Dashboard";
   }, [activeTab]);

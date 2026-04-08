@@ -9,10 +9,10 @@ import AdminDashboard from "./pages/AdminDashboard";
 import VendorDashboard from "./pages/vendor/VendorDashboard";
 import StudentOrderProcessPage from "./pages/student/StudentOrderProcessPage";
 import MyOrdersPage from "./pages/student/MyOrdersPage";
-import HomePage from "./pages/student/HomePage";
 import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
-import FoodManagement from "./pages/vendor/FoodManagement";
+import MyFavorites from "./pages/student/MyFavorites";
+import HomePage from "./pages/student/HomePage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -71,7 +71,7 @@ function App() {
             />
             <Route
               path="/food-management"
-              element={<FoodManagement user={user} />}
+              element={<VendorDashboard user={user} onLogout={handleLogout} />}
             />
             <Route
               path="*"
@@ -96,7 +96,7 @@ function App() {
 
             <Route
               path="/vendor-list"
-              element={<VendorList />}
+              element={<VendorList user={user} onLogout={handleLogout} />}
             />
 
             <Route
@@ -107,6 +107,11 @@ function App() {
             <Route
               path="/student/order"
               element={<StudentOrderProcessPage user={user} />}
+            />
+
+            <Route
+              path="/student/favorites"
+              element={<MyFavorites user={user} onLogout={handleLogout} />}
             />
 
             <Route

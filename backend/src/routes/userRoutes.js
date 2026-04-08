@@ -50,7 +50,7 @@ router.post(
         vendorLocation: role === "vendor" ? vendorLocation : null,
         vendorLogo:
           role === "vendor" && req.file
-            ? req.file.filename
+            ? req.file.path
             : null,
       });
 

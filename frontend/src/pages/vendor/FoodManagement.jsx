@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, X, ImageIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, X, ImageIcon, Filter, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
 
@@ -11,6 +11,8 @@ export default function FoodManagement({ user }) {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [stockFilter, setStockFilter] = useState('All');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -18,9 +20,10 @@ export default function FoodManagement({ user }) {
     price: '',
     category: CATEGORIES[0],
     quantity: '',
-    imageUrl: '',
     originalPrice: ''
   });
+  
+  const [imageFile, setImageFile] = useState(null);
   
   const [editingId, setEditingId] = useState(null);
 
@@ -62,9 +65,9 @@ export default function FoodManagement({ user }) {
       price: '',
       category: CATEGORIES[0],
       quantity: '',
-      imageUrl: '',
       originalPrice: ''
     });
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
@@ -76,31 +79,38 @@ export default function FoodManagement({ user }) {
       price: food.price,
       category: food.category || CATEGORIES[0],
       quantity: food.quantity || 0,
-      imageUrl: food.image || '',
       originalPrice: food.originalPrice || ''
     });
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const payload = {
-      ...formData,
-      price: Number(formData.price) || 0,
-      quantity: Number(formData.quantity) || 0,
-      originalPrice: formData.originalPrice ? Number(formData.originalPrice) : null,
-    };
+    const payload = new FormData();
+    payload.append("name", formData.name);
+    payload.append("description", formData.description);
+    payload.append("price", Number(formData.price) || 0);
+    payload.append("category", formData.category);
+    payload.append("quantity", Number(formData.quantity) || 0);
+    if (formData.originalPrice) {
+      payload.append("originalPrice", Number(formData.originalPrice));
+    }
+    
+    if (imageFile) {
+      payload.append("image", imageFile);
+    }
 
     try {
       if (editingId) {
         const res = await api.put(`/api/foods/${editingId}`, payload, {
-          headers: vendorHeaders
+          headers: { ...vendorHeaders, "Content-Type": "multipart/form-data" }
         });
         setFoods(prev => prev.map(f => f._id === editingId ? res.data : f));
       } else {
         const res = await api.post('/api/foods/create', payload, {
-          headers: vendorHeaders
+          headers: { ...vendorHeaders, "Content-Type": "multipart/form-data" }
         });
         setFoods(prev => [res.data, ...prev]);
       }
@@ -123,19 +133,46 @@ export default function FoodManagement({ user }) {
     }
   };
 
-  const filteredFoods = foods.filter(food => 
-    food.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    food.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isOutOfStock = (food) => Number(food.quantity || 0) <= 0;
+  const isLowStock = (food) => Number(food.quantity || 0) > 0 && Number(food.quantity || 0) <= 5;
+
+  const filteredFoods = foods.filter((food) => {
+    const matchesSearch =
+      food.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      food.category?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory = categoryFilter === 'All' ? true : (food.category || 'Other') === categoryFilter;
+    let matchesStock = true;
+    if (stockFilter === 'InStock') matchesStock = Number(food.quantity || 0) > 0;
+    if (stockFilter === 'LowStock') matchesStock = isLowStock(food);
+    if (stockFilter === 'OutOfStock') matchesStock = isOutOfStock(food);
+
+    return matchesSearch && matchesCategory && matchesStock;
+  });
+
+  const totalItems = foods.length;
+  const inStockItems = foods.filter((f) => Number(f.quantity || 0) > 0).length;
+  const lowStockItems = foods.filter((f) => isLowStock(f)).length;
+  const stockValue = foods.reduce((sum, f) => sum + Number(f.price || 0) * Number(f.quantity || 0), 0);
+
+  const categoryStats = CATEGORIES.map((category) => {
+    const count = foods.filter((f) => (f.category || 'Other') === category).length;
+    return { category, count };
+  });
+  const maxCategoryCount = Math.max(1, ...categoryStats.map((s) => s.count));
+  const lowStockList = foods
+    .filter((f) => isLowStock(f) || isOutOfStock(f))
+    .sort((a, b) => Number(a.quantity || 0) - Number(b.quantity || 0))
+    .slice(0, 5);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto font-sans text-slate-900">
+    <div className="max-w-7xl mx-auto font-sans text-slate-900 space-y-6">
       
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Food Menu Management</h1>
-          <p className="text-slate-500 text-sm mt-1">Add, edit, and organize your food offerings</p>
+          <h1 className="text-2xl font-bold tracking-tight">Food Menu Management</h1>
+          <p className="text-slate-500 text-sm mt-1">Add items, monitor stock, and track quick menu insights.</p>
         </div>
         
         <button 
@@ -147,22 +184,108 @@ export default function FoodManagement({ user }) {
         </button>
       </div>
 
-      {/* Constraints & Search */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col sm:flex-row gap-4 justify-between">
-        <div className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
-          <input 
-            type="text" 
-            placeholder="Search food items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
-          />
+      {/* Summary Cards */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide">Total Items</p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{totalItems}</p>
         </div>
-        <div className="flex items-center text-sm text-slate-500">
-          Showing {filteredFoods.length} item(s)
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-sm">
+          <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">In Stock</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-700">{inStockItems}</p>
         </div>
-      </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4 shadow-sm">
+          <p className="text-xs text-amber-700 font-semibold uppercase tracking-wide">Low Stock</p>
+          <p className="mt-2 text-2xl font-bold text-amber-700">{lowStockItems}</p>
+        </div>
+        <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4 shadow-sm">
+          <p className="text-xs text-sky-700 font-semibold uppercase tracking-wide">Stock Value</p>
+          <p className="mt-2 text-2xl font-bold text-sky-700">Rs. {stockValue.toFixed(0)}</p>
+        </div>
+      </section>
+
+      {/* Search + Filter */}
+      <section className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col xl:flex-row gap-3 xl:items-center xl:justify-between">
+          <div className="relative w-full xl:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input 
+              type="text" 
+              placeholder="Search food items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative">
+              <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="pl-9 pr-8 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="All">All Categories</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="All">All Stock States</option>
+              <option value="InStock">In Stock</option>
+              <option value="LowStock">Low Stock</option>
+              <option value="OutOfStock">Out of Stock</option>
+            </select>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-slate-500">Showing {filteredFoods.length} item(s)</p>
+      </section>
+
+      {/* Reports / Charts */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Category Distribution</h3>
+            <BarChart3 className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="space-y-3">
+            {categoryStats.map((stat) => (
+              <div key={stat.category}>
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-medium text-slate-700">{stat.category}</span>
+                  <span className="text-slate-500">{stat.count} item(s)</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                    style={{ width: `${(stat.count / maxCategoryCount) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide mb-3">Low Stock Alerts</h3>
+          <div className="space-y-2">
+            {lowStockList.length === 0 ? (
+              <p className="text-sm text-emerald-600 font-medium">No low stock alerts</p>
+            ) : (
+              lowStockList.map((f) => (
+                <div key={f._id} className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-center justify-between">
+                  <span className="text-sm text-slate-700 truncate mr-2">{f.name}</span>
+                  <span className="text-xs font-semibold text-amber-700">Qty {Number(f.quantity || 0)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Grid Display */}
       {isLoading ? (
@@ -174,7 +297,7 @@ export default function FoodManagement({ user }) {
           <p className="text-slate-500 font-medium">No food items found.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
           <AnimatePresence>
             {filteredFoods.map(food => (
               <motion.div 
@@ -182,12 +305,16 @@ export default function FoodManagement({ user }) {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col group"
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col group w-full max-w-[300px]"
               >
                 {/* Image Placeholder */}
-                <div className="h-48 bg-slate-100 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
+                <div className="h-44 bg-gradient-to-br from-slate-100 to-slate-200/60 relative border-b border-slate-100 flex items-center justify-center overflow-hidden">
                   {food.image ? (
-                    <img src={food.image} alt={food.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img
+                      src={food.image}
+                      alt={food.name}
+                      className="w-full h-full object-cover group-hover:scale-[1.06] transition-transform duration-500"
+                    />
                   ) : (
                     <div className="text-slate-400 flex flex-col items-center">
                       <ImageIcon className="w-10 h-10 mb-2 opacity-50" />
@@ -205,13 +332,13 @@ export default function FoodManagement({ user }) {
                 </div>
 
                 {/* Card Content */}
-                <div className="p-5 flex flex-col flex-grow">
+                <div className="p-3.5 flex flex-col flex-grow">
                   <div className="flex justify-between items-start mb-2 gap-2">
-                    <h3 className="text-lg font-bold text-slate-900 truncate pr-2" title={food.name}>
+                    <h3 className="text-sm font-bold text-slate-900 truncate pr-2" title={food.name}>
                       {food.name}
                     </h3>
                     <div className="flex flex-col items-end">
-                      <div className="font-extrabold text-amber-600 whitespace-nowrap">
+                      <div className="font-extrabold text-amber-600 whitespace-nowrap text-sm">
                         Rs. {food.price.toFixed(2)}
                       </div>
                       {food.originalPrice > food.price && (
@@ -222,27 +349,32 @@ export default function FoodManagement({ user }) {
                     </div>
                   </div>
                   
-                  <p className="text-slate-500 text-sm line-clamp-2 mb-4 min-h-[40px]">
+                  <p className="text-slate-500 text-xs line-clamp-2 mb-3 min-h-[34px]">
                     {food.description || "No description provided."}
                   </p>
                   
-                  <div className="mt-auto border-t border-slate-100 pt-4 flex items-center justify-between">
-                    <div className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+                  <div className="mt-auto border-t border-slate-100 pt-3 flex items-center justify-between">
+                    <div className={`text-[11px] font-medium px-2 py-1 rounded-md ${
+                      isOutOfStock(food)
+                        ? "bg-rose-50 text-rose-700"
+                        : isLowStock(food)
+                        ? "bg-amber-50 text-amber-700"
+                        : "bg-emerald-50 text-emerald-700"
+                    }`}>
                       Qty: <span className="text-slate-800">{food.quantity}</span>
-                      <span className="ml-2 text-amber-600 pr-1 border-l-2 border-slate-200 pl-2">{food.stockStatus}</span>
                     </div>
                     
                     <div className="flex gap-2">
                       <button 
                         onClick={() => openEditModal(food)}
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                         title="Edit Item"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => handleDelete(food._id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
                         title="Delete Item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -374,14 +506,13 @@ export default function FoodManagement({ user }) {
                     </div>
 
                     <div className="col-span-1 md:col-span-2">
-                      <label className="block text-sm font-semibold text-slate-700 mb-1">Image URL</label>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1">Image Upload</label>
                       <input 
-                        type="url"
-                        name="imageUrl"
-                        value={formData.imageUrl}
-                        onChange={handleInputChange}
-                        placeholder="https://example.com/image.jpg"
-                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+                        type="file"
+                        accept="image/*"
+                        name="image"
+                        onChange={(e) => setImageFile(e.target.files[0])}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
                       />
                     </div>
 

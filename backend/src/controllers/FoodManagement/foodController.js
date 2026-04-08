@@ -29,12 +29,17 @@ exports.createFood = async (req, res) => {
     const {
       name,
       description,
-      price,
       category,
-      quantity,
-      imageUrl,
-      originalPrice,
     } = req.body;
+
+    const price = Number(req.body.price) || 0;
+    const quantity = Number(req.body.quantity) || 0;
+    const originalPrice = req.body.originalPrice ? Number(req.body.originalPrice) : null;
+    
+    let imageUrl = req.body.imageUrl || "";
+    if (req.file) {
+      imageUrl = req.file.path; // Cloudinary URL
+    }
 
     const promotionPercentage = calculatePromotion(price, originalPrice);
 
@@ -46,6 +51,7 @@ exports.createFood = async (req, res) => {
       quantity,
       image: imageUrl,
       promotionPercentage,
+      originalPrice,
       vendorId,
     });
 
@@ -92,12 +98,17 @@ exports.updateFood = async (req, res) => {
     const {
       name,
       description,
-      price,
       category,
-      quantity,
-      imageUrl,
-      originalPrice,
     } = req.body;
+
+    const price = Number(req.body.price) || 0;
+    const quantity = Number(req.body.quantity) || 0;
+    const originalPrice = req.body.originalPrice ? Number(req.body.originalPrice) : null;
+    
+    let imageUrl = req.body.imageUrl || "";
+    if (req.file) {
+      imageUrl = req.file.path; // Cloudinary URL
+    }
 
     const promotionPercentage = calculatePromotion(price, originalPrice);
 
@@ -111,6 +122,7 @@ exports.updateFood = async (req, res) => {
         quantity,
         image: imageUrl,
         promotionPercentage,
+        originalPrice,
       },
       { new: true }
     );
