@@ -125,30 +125,11 @@ function App() {
               path="/my-orders"
               element={<MyOrdersPage user={user} />}
             />
-
             {/* fallback */}
             <Route
               path="*"
               element={<HomePage user={user} onLogout={handleLogout} />}
             />
-
-
-            <Route path="/" element={<HomePage user={user} onLogout={handleLogout} />} />
-            <Route path="/home" element={<HomePage user={user} onLogout={handleLogout} />} />
-            <Route path="/profile" element={<StudentProfile user={user} onLogout={handleLogout} />} />
-            <Route path="/reviews" element={<ReviewsPage user={user} onLogout={handleLogout} />} />
-            <Route path="/vendor-list" element={<VendorList />} />
-            <Route path="/vendor/:vendorId" element={<VendorMenu user={user} onLogout={handleLogout} />} />
-            <Route path="/student/order" element={<StudentOrderProcessPage user={user} />} />
-            <Route path="/my-orders" element={<MyOrdersPage user={user} />} />
-
-            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />/helpcenter
-            
-
-            <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
-
-
-
           </>
         )}
 
@@ -166,7 +147,7 @@ function App() {
       <Route path="/admin/login" element={<AdminLogin onLogin={handleLogin} />} />
       <Route path="*" element={<Login onLogin={handleLogin} />} />
       <Route path="/helpcenter" element={<HelpCenter />} />
-      <Route path="/rate-us" element={<ReviewsPage />} />
+      <Route path="/rate-us" element={<div className="text-center p-10 font-bold">Reviews Page Coming Soon</div>} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<Privacypage />} />
     </Routes>

@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Bell, ShoppingCart, LogOut, User, Star, Package, Heart, ChevronDown } from 'lucide-react';
 
-export default function Header({ profile, user, onLogout }) {
+export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -32,7 +33,7 @@ export default function Header({ profile, user, onLogout }) {
   }, [profileData]);
 
   return (
-    <header className="border-b border-slate-100 bg-white/90 backdrop-blur-md sticky top-0 z-50">
+    <header className="border-b border-orange-200/60 bg-gradient-to-r from-orange-50/80 to-amber-50/80 backdrop-blur-xl sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* LEFT: Logo Section */}
@@ -48,29 +49,37 @@ export default function Header({ profile, user, onLogout }) {
           </span>
         </div>
 
-        {/* CENTER: Navigation */}
         <nav className="hidden lg:flex items-center gap-8">
-          <button onClick={() => navigate('/')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Home</button>
-          <button onClick={() => navigate('/vendor-list')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Vendors</button>
-          <button onClick={() => navigate('/student/favorites')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Favorites</button>
-          <button onClick={() => navigate('/my-orders')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Orders</button>
-          <button onClick={() => navigate('/offers')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Offers</button>
+          <button onClick={() => navigate('/')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Home</button>
+          <button onClick={() => navigate('/vendor-list')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Vendors</button>
+          <button onClick={() => navigate('/student/favorites')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Favorites</button>
+          <button onClick={() => navigate('/my-orders')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Orders</button>
+          <button onClick={() => navigate('/offers')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Offers</button>
         </nav>
 
         {/* RIGHT: Actions & Profile */}
         <div className="flex items-center gap-4">
           
           <div className="flex items-center border-r border-slate-200 pr-4 gap-2">
-            <button className="relative p-2.5 rounded-full text-slate-500 hover:bg-slate-100 transition-all">
+            <button className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all">
               <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-orange-500 rounded-full border-2 border-white"></span>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
             </button>
 
             <button
               onClick={() => navigate("/student/order")}
-              className="p-2.5 rounded-full text-slate-500 hover:bg-slate-100 transition-all"
+              className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all group"
             >
-              <ShoppingCart className="w-5 h-5" />
+              <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              {cartItemCount > 0 && (
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white shadow-sm"
+                >
+                  {cartItemCount}
+                </motion.span>
+              )}
             </button>
           </div>
           
