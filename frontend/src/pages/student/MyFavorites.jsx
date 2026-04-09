@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, ShoppingCart, Plus, Heart, HeartOff } from 'lucide-react';
+import { Loader2, ShoppingCart, Plus, Heart, HeartOff, Store } from 'lucide-react';
 import heroImage from '../../assets/image1.jpg';
 import api from '../../services/api';
 import Header from '../../components/Header';
@@ -43,7 +43,7 @@ export default function MyFavorites({ user, onLogout }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col font-sans">
       <Header user={user} onLogout={onLogout} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full space-y-8">
@@ -70,12 +70,15 @@ export default function MyFavorites({ user, onLogout }) {
             <p className="text-slate-500 max-w-sm mb-6">
               Start exploring the campus menus and tap the heart icon to save your favorite meals here!
             </p>
-            <button
+            <motion.button
               onClick={() => navigate('/vendor-list')}
-              className="px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl shadow-md active:scale-95 transition-all"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              className="group relative inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold shadow-xl shadow-orange-500/25 overflow-hidden transition-all"
             >
-              Browse Vendors
-            </button>
+              <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
+              <span className="relative drop-shadow-sm text-[15px]">Browse Vendors</span>
+            </motion.button>
           </div>
         ) : (
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -91,7 +94,7 @@ export default function MyFavorites({ user, onLogout }) {
                   className={`bg-white rounded-2xl border ${item.quantity > 0 ? 'border-slate-200' : 'border-slate-200/60 opacity-75'} shadow-sm hover:shadow-lg transition-shadow overflow-hidden flex flex-col group`}
                 >
                   {/* Food Image Area */}
-                  <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => navigate(`/vendor/${item.vendorId}`)}>
+                  <div className="relative h-48 bg-slate-100 overflow-hidden cursor-pointer" onClick={() => navigate(`/vendor/${item.vendorId?._id || item.vendorId}`)}>
                     {item.image || heroImage ? (
                       <img
                         src={item.image || heroImage}
@@ -128,6 +131,10 @@ export default function MyFavorites({ user, onLogout }) {
 
                   {/* Item Details */}
                   <div className="p-5 flex flex-col flex-grow">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                       <Store className="w-3.5 h-3.5" />
+                       {item.vendorId?.vendorName || item.vendorId?.name || "Campus Vendor"}
+                    </p>
                     <h3 className="text-lg font-bold text-slate-900 mb-1 leading-tight line-clamp-2">
                       {item.name}
                     </h3>

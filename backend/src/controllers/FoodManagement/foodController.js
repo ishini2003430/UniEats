@@ -56,7 +56,7 @@ exports.createFood = async (req, res) => {
     });
 
     const result = food.toObject();
-    result.stockStatus = calculateStockStatus(food.quantity);
+    result.availabilityStatus = calculateStockStatus(food.quantity);
 
     res.status(201).json(result);
   } catch (error) {
@@ -78,7 +78,7 @@ exports.queryFoods = async (req, res) => {
 
     const result = foods.map((food) => {
       const obj = food.toObject();
-      obj.stockStatus = calculateStockStatus(food.quantity);
+      obj.availabilityStatus = calculateStockStatus(food.quantity);
       return obj;
     });
 
@@ -131,7 +131,7 @@ exports.updateFood = async (req, res) => {
       return res.status(404).json({ message: "Food not found" });
 
     const obj = updated.toObject();
-    obj.stockStatus = calculateStockStatus(updated.quantity);
+    obj.availabilityStatus = calculateStockStatus(updated.quantity);
 
     res.json(obj);
   } catch (error) {

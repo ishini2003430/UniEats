@@ -1,38 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, Store, ShoppingCart, Plus, Check, Heart, Flame, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Store, ShoppingCart, Plus, Check, Heart, Flame, MessageCircle, X, Send, Sparkles, Bot, Clock } from 'lucide-react';
 import heroImage from '../../assets/image1.jpg';
 import api from '../../services/api';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 
-const PromoCountdown = () => {
-  const [timeLeft, setTimeLeft] = useState({ h: 6, m: 45, s: 30 });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.s > 0) return { ...prev, s: prev.s - 1 };
-        if (prev.m > 0) return { h: prev.h, m: prev.m - 1, s: 59 };
-        if (prev.h > 0) return { h: prev.h - 1, m: 59, s: 59 };
-        return prev;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  return (
-    <div className="inline-flex items-center gap-2 text-amber-100 font-mono text-sm bg-white/10 px-3 py-1.5 rounded-xl border border-white/15 shadow-inner backdrop-blur-md">
-      <Clock className="w-3.5 h-3.5 text-amber-200" />
-      <span className="font-bold">{String(timeLeft.h).padStart(2, '0')}</span>
-      <span className="text-amber-200/80">:</span>
-      <span className="font-bold">{String(timeLeft.m).padStart(2, '0')}</span>
-      <span className="text-amber-200/80">:</span>
-      <span className="font-bold">{String(timeLeft.s).padStart(2, '0')}</span>
-    </div>
-  );
-};
+// Promo section relocated to dynamic combo engine
 
 export default function VendorMenu({ user, onLogout }) {
   const { vendorId } = useParams();
@@ -45,6 +20,119 @@ export default function VendorMenu({ user, onLogout }) {
   const [menuItems, setMenuItems] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [selectedFoodIds, setSelectedFoodIds] = useState([]);
+
+  // --- Real-Time Countdown State ---
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // --- AI Chat State ---
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { text: "Hi! I'm your smart assistant. Ask me about 'cheap' foods, 'popular' items, 'drinks', or our 'combo' deals!", sender: 'ai' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, isChatOpen]);
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if(!chatInput.trim()) return;
+    
+    const userMsg = chatInput.trim().toLowerCase();
+    setChatMessages(prev => [...prev, { text: chatInput, sender: 'user' }]);
+    setChatInput('');
+
+    let aiResponse = "I'm not sure how to help with that. Try asking for 'cheap', 'drink', 'popular', or 'combo'.";
+
+    if (userMsg.includes('cheap')) {
+      const cheapFoods = menuItems.filter(item => Number(item.price) < 500).slice(0, 3);
+      if(cheapFoods.length > 0) {
+        aiResponse = "Here are some affordable options: " + cheapFoods.map(f => f.name).join(', ');
+      } else {
+        aiResponse = "I couldn't find anything extremely cheap right now.";
+      }
+    } else if (userMsg.includes('drink')) {
+      const drinks = menuItems.filter(item => item.category?.toLowerCase().includes('drink') || item.category?.toLowerCase().includes('beverage')).slice(0, 3);
+      if(drinks.length > 0) {
+        aiResponse = "Hydrate with these: " + drinks.map(f => f.name).join(', ');
+      } else {
+        aiResponse = "Looks like we're out of drinks!";
+      }
+    } else if (userMsg.includes('popular')) {
+       const pop = [...menuItems].sort((a,b) => Number(b.price) - Number(a.price)).slice(0, 3);
+       aiResponse = "Our most popular items are: " + pop.map(f => f.name).join(', ');
+    } else if (userMsg.includes('combo')) {
+       aiResponse = "Check out our 🔥 Recommended For You section right above the menu! We found a great match for you.";
+    }
+
+    setTimeout(() => {
+      setChatMessages(prev => [...prev, { text: aiResponse, sender: 'ai' }]);
+    }, 500);
+  };
+
+  // --- Smart Combos Logic ---
+  const recommendedCombos = useMemo(() => {
+    const mains = menuItems.filter(f => f.category?.toLowerCase() === 'main' || f.category?.toLowerCase() === 'rice' || Number(f.price) >= 500);
+    const drinks = menuItems.filter(f => f.category?.toLowerCase().includes('drink') || f.category?.toLowerCase().includes('beverage'));
+    const snacks = menuItems.filter(f => f.category?.toLowerCase().includes('snack') || f.category?.toLowerCase().includes('short'));
+
+    const combos = [];
+    let comboItems = [];
+
+    // Attempt 1: Strict Categorical Meal
+    if (mains.length > 0 && drinks.length > 0) {
+      comboItems = [mains[0], drinks[0]];
+      if(snacks.length > 0) comboItems.push(snacks[0]);
+    } 
+    // Attempt 2: Universal Fallback (Find 2-3 distinct items)
+    else if (menuItems.length >= 2) {
+      const sortedByPriceDesc = [...menuItems].sort((a,b) => Number(b.price) - Number(a.price));
+      const sortedByPriceAsc = [...menuItems].sort((a,b) => Number(a.price) - Number(b.price));
+      
+      comboItems = [sortedByPriceDesc[0], sortedByPriceDesc[1]];
+      if(menuItems.length >= 3 && sortedByPriceAsc[0]._id !== sortedByPriceDesc[0]._id && sortedByPriceAsc[0]._id !== sortedByPriceDesc[1]._id) {
+         comboItems.push(sortedByPriceAsc[0]);
+      }
+    }
+    
+    if (comboItems.length >= 2) {
+      const originalComboPrice = comboItems.reduce((acc, curr) => acc + Number(curr.price), 0);
+      const fakeDiscountPrice = originalComboPrice * 0.9;
+      
+      combos.push({
+        id: "combo-1",
+        title: "Vendor Special Bundle",
+        items: comboItems,
+        originalPrice: originalComboPrice,
+        discountedPrice: fakeDiscountPrice,
+        discountText: "Save 10%",
+        expiresAt: Date.now() + 5 * 60 * 1000
+      });
+    }
+    return combos;
+  }, [menuItems]);
+
+  const activeCombos = recommendedCombos.filter(
+    combo => combo.expiresAt > now
+  );
+
+  const getRemainingTime = (expiresAt) => {
+    const diff = expiresAt - now;
+    if (diff <= 0) return "Expired";
+
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
 
   const categories = ['All', ...Array.from(new Set(
     menuItems
@@ -100,11 +188,9 @@ export default function VendorMenu({ user, onLogout }) {
     activeCategory === 'All' ? true : item.category === activeCategory
   );
 
-  const isItemAvailable = (item) => (
-    (item.quantity !== undefined && item.quantity !== null)
-      ? Number(item.quantity) > 0
-      : Boolean(item.isAvailable ?? true)
-  );
+  const isItemAvailable = (item) => {
+    return item.availabilityStatus !== "Out of Stock";
+  };
 
   const toggleCartItem = (item) => {
     if (!isItemAvailable(item)) return;
@@ -124,34 +210,56 @@ export default function VendorMenu({ user, onLogout }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <Header user={user} onLogout={onLogout} />
+      <Header user={user} onLogout={onLogout} cartItemCount={selectedFoodIds.length} />
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-8">
+        
+        <style>
+          {`
+          @keyframes pulseCustom {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+          }
+          `}
+        </style>
 
         {/* 2. Animated hero banner section at top (rounded container, gradient background) */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/60 shadow-md"
+          className="relative overflow-hidden rounded-3xl border border-amber-300/60 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 shadow-xl shadow-amber-500/10 group"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-50/60 via-orange-50/70 to-amber-100/50" />
           <motion.div
-            animate={{ x: [0, 10, 0], opacity: [0.18, 0.28, 0.18] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-300/70 blur-3xl"
+            animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.1)_0%,rgba(249,115,22,0.1)_50%,rgba(244,63,94,0.1)_100%)] opacity-60 bg-[length:200%_200%]"
+          />
+          <motion.div
+            animate={{ x: [0, 20, 0], opacity: [0.15, 0.35, 0.15], scale: [1, 1.2, 1] }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-amber-400 blur-3xl pointer-events-none"
           />
           <div className="relative z-10 p-6 sm:p-8 md:p-9">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="min-w-0">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-amber-100 text-amber-700 border border-amber-200">
+                <motion.span 
+                  animate={{ y: [0, -3, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-300 shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
                   Featured Vendor
-                </span>
-                <h2 className="mt-3 text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight leading-tight truncate">
+                </motion.span>
+                <motion.h2 
+                  whileHover={{ scale: 1.02 }}
+                  className="mt-3 text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 tracking-tight leading-tight truncate"
+                >
                   {vendorDetails?.vendorName || vendorDetails?.name || 'Vendor Details'}
-                </h2>
-                <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed">
+                </motion.h2>
+                <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed font-medium">
                   Freshly prepared campus favorites with quick pickup and reliable service.
                 </p>
               </div>
@@ -159,84 +267,7 @@ export default function VendorMenu({ user, onLogout }) {
           </div>
         </motion.section>
 
-        {/* FLASH PROMO (static marketing card) */}
-        {!loading && !error && (
-          <motion.section
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ delay: 0.15, duration: 0.55, ease: "easeOut" }}
-            className="relative overflow-hidden rounded-3xl border border-amber-300/40 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white shadow-xl"
-          >
-            <motion.div
-              animate={{ opacity: [0.35, 0.85, 0.35] }}
-              transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none absolute inset-0 rounded-3xl ring-2 ring-amber-400/70 ring-inset"
-            />
-            <motion.div
-              animate={{ opacity: [0.08, 0.22, 0.08], scale: [0.99, 1.01, 0.99] }}
-              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none absolute -inset-[2px] rounded-3xl border border-amber-300/50"
-            />
-            <motion.div
-              animate={{ opacity: [0.12, 0.3, 0.12], scale: [1, 1.08, 1], y: [0, -6, 0] }}
-              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none absolute -top-20 -right-20 h-64 w-64 rounded-full bg-amber-400 blur-3xl"
-            />
-            <motion.div
-              animate={{ opacity: [0.08, 0.18, 0.08], x: [0, -10, 0] }}
-              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              className="pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-orange-400 blur-3xl"
-            />
-
-            <div className="relative z-10 p-6 sm:p-7 md:p-8 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 md:gap-8 items-center">
-              <div>
-                <motion.div
-                  animate={{ y: [0, -2, 0] }}
-                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-                  className="inline-flex items-center gap-2 rounded-full border border-amber-300/40 bg-amber-400/10 px-3 py-1 text-[11px] font-semibold tracking-wider uppercase text-amber-200"
-                >
-                  <Flame className="w-3.5 h-3.5" />
-                  Flash Promo
-                </motion.div>
-                <h3 className="mt-3 text-xl sm:text-2xl font-bold leading-tight">
-                  Limited-time Student Combo
-                </h3>
-                <p className="mt-2 text-sm sm:text-[15px] text-slate-200 max-w-2xl leading-relaxed">
-                  A balanced campus meal bundle for quick pickup. Offer ends soon.
-                </p>
-                <div className="mt-3">
-                  <PromoCountdown />
-                </div>
-              </div>
-
-              <motion.div
-                whileHover={{ y: -3, scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 260, damping: 18 }}
-                className="w-full md:w-[280px] rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md p-4"
-              >
-                <p className="text-xs uppercase tracking-wide text-slate-300 font-semibold">Bundle Deal</p>
-                <h4 className="mt-1 text-sm font-semibold text-white">Main + Side + Drink</h4>
-                <div className="mt-3 flex items-end justify-between">
-                  <div>
-                    <p className="text-xs text-slate-300 line-through">Rs. 950.00</p>
-                    <p className="text-2xl font-extrabold text-amber-300 leading-none">Rs. 690.00</p>
-                  </div>
-                  <span className="rounded-lg bg-emerald-400/20 border border-emerald-300/40 px-2 py-1 text-xs font-bold text-emerald-200">
-                    Save 27%
-                  </span>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 280, damping: 18 }}
-                  className="mt-4 w-full rounded-xl bg-amber-500 text-slate-950 font-semibold py-2.5 hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/25"
-                >
-                  Add Combo
-                </motion.button>
-              </motion.div>
-            </div>
-          </motion.section>
-        )}
+        {/* Dynamic promos now rendered via Smart Combo section below loading spinner */}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
@@ -249,6 +280,89 @@ export default function VendorMenu({ user, onLogout }) {
           </div>
         ) : (
           <>
+            {/* 🔥 Smart Combos Section */}
+            {activeCombos.length > 0 && (
+              <section className="mb-8 border-b border-slate-200/50 pb-8">
+                <div className="flex items-center gap-2 mb-6">
+                  <Flame className="w-7 h-7 text-orange-500" />
+                  <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Recommended For You</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {activeCombos.map(combo => (
+                    <motion.div 
+                      key={combo.id}
+                      whileHover={{ y: -8, scale: 1.02 }}
+                      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                      className="bg-white/90 backdrop-blur-md rounded-[2rem] border-2 border-amber-300 shadow-xl shadow-amber-500/10 overflow-hidden flex flex-col p-5 group relative"
+                    >
+                      <motion.div 
+                        animate={{ rotate: [0, 15, -5, 0] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                        className="absolute -top-4 -right-4 text-5xl opacity-40 blur-[2px] pointer-events-none"
+                      >
+                        ✨
+                      </motion.div>
+                      <div className="flex justify-between items-start mb-4">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-orange-500/10 text-orange-600 h-max">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          {combo.title}
+                        </span>
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className="px-2 py-1 rounded-lg bg-rose-500 text-white text-[10px] font-bold uppercase shadow-sm">
+                            {combo.discountText}
+                          </span>
+                          <div 
+                            className="combo-timer text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 whitespace-nowrap" 
+                            style={{ animation: 'pulseCustom 1.5s infinite' }}
+                          >
+                            ⏱ Ends in: {getRemainingTime(combo.expiresAt)}
+                          </div>
+                          {combo.expiresAt - now < 60000 && (
+                            <div className="last-minute text-[10px] font-black uppercase text-white bg-red-600 px-2 py-0.5 rounded shadow-sm animate-pulse w-max">
+                              🔥 LAST MINUTE DEAL
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar items-end">
+                        {combo.items.map(food => (
+                          <div key={food._id} className="min-w-[70px] flex flex-col items-center flex-shrink-0">
+                            <div className="w-16 h-16 rounded-full overflow-hidden border-4 border-slate-50 shadow-sm mb-2 relative group-hover:scale-105 transition-transform">
+                              {food.image || heroImage ? (
+                                <img src={food.image || heroImage} alt={food.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-slate-100 flex items-center justify-center text-xl">🍽️</div>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-700 text-center line-clamp-1 w-full">{food.name}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Total Price</span>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs text-slate-400 line-through">Rs. {combo.originalPrice.toFixed(2)}</span>
+                            <span className="text-lg font-extrabold text-amber-600">Rs. {combo.discountedPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <motion.button 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => combo.items.forEach(item => { if(isItemAvailable(item) && !selectedFoodIds.includes(String(item._id))) toggleCartItem(item) })}
+                          className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold shadow-md hover:bg-slate-800 transition shadow-slate-900/20"
+                        >
+                          Add Combo
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* 3. Category filter buttons row */}
             <section className="flex items-center gap-3 overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
               <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-full border border-slate-200/60 shadow-inner w-max">
@@ -303,7 +417,7 @@ export default function VendorMenu({ user, onLogout }) {
                           <img
                             src={item.image || heroImage}
                             alt={item.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            className={`w-full h-full object-cover transition-transform duration-500 ${isItemAvailable(item) ? 'group-hover:scale-105' : 'opacity-60 grayscale'}`}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-slate-300">
@@ -314,13 +428,19 @@ export default function VendorMenu({ user, onLogout }) {
 
                         {/* Availability text badge */}
                         <div className="absolute top-3 right-3">
-                          {isItemAvailable(item) ? (
+                          {item.availabilityStatus === "Available" && (
                             <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-emerald-500/90 text-white rounded-full shadow-sm backdrop-blur-md border border-emerald-400/50">
                               Available
                             </span>
-                          ) : (
-                            <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-slate-800/80 text-white rounded-full shadow-sm backdrop-blur-md border border-slate-700/50">
-                              Sold Out
+                          )}
+                          {item.availabilityStatus === "Low Stock" && (
+                            <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-orange-500/90 text-white rounded-full shadow-sm backdrop-blur-md border border-orange-400/50">
+                              Low Stock
+                            </span>
+                          )}
+                          {item.availabilityStatus === "Out of Stock" && (
+                            <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-rose-500/90 text-white rounded-full shadow-sm backdrop-blur-md border border-rose-400/50">
+                              Out of Stock
                             </span>
                           )}
                         </div>
@@ -376,7 +496,7 @@ export default function VendorMenu({ user, onLogout }) {
                           <div className="flex items-center gap-2">
                             {/* Favorite Button */}
                             <button
-                              onClick={() => toggleFavorite(item._id)}
+                              onClick={(e) => { e.stopPropagation(); toggleFavorite(item._id); }}
                               className="w-10 h-10 rounded-full flex items-center justify-center transition-colors bg-slate-50 text-slate-400 hover:bg-rose-50 hover:text-rose-500"
                               title="Toggle Favorite"
                             >
@@ -460,6 +580,73 @@ export default function VendorMenu({ user, onLogout }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 🤖 Smart AI Chat Widget */}
+      <AnimatePresence>
+        {isChatOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="fixed bottom-24 right-4 sm:right-6 lg:right-8 z-50 w-80 sm:w-96 rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3.5 flex items-center justify-between shadow-sm z-10">
+              <div className="flex items-center gap-2.5 text-white">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
+                   <Bot className="w-4 h-4" />
+                </div>
+                <span className="font-bold text-sm tracking-wide">UniEats Assistant</span>
+              </div>
+              <button onClick={() => setIsChatOpen(false)} className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 rounded-xl transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {/* Chat Body */}
+            <div className="h-72 overflow-y-auto p-4 bg-slate-50/50 flex flex-col gap-3 custom-scrollbar">
+              {chatMessages.map((msg, i) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
+                  key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white text-slate-700 rounded-bl-sm border border-slate-200/60'}`}>
+                    {msg.text}
+                  </div>
+                </motion.div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input Footer */}
+            <div className="p-3 bg-white border-t border-slate-100 z-10">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                <input 
+                  type="text" 
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  placeholder="Ask for 'cheap', 'combos'..." 
+                  className="w-full text-sm rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-slate-700"
+                />
+                <button type="submit" className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition active:scale-95">
+                  <Send className="w-4 h-4 ml-0.5" />
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Chat Button */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsChatOpen(!isChatOpen)}
+        className="fixed bottom-6 right-4 sm:right-6 lg:right-8 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center border-2 border-white ring-4 ring-indigo-500/20"
+      >
+        {isChatOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6 animate-pulse" />}
+      </motion.button>
+
       <Footer />
     </div>
   );
