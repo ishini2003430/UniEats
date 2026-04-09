@@ -6,6 +6,7 @@ import heroImage from '../../assets/image1.jpg';
 import api from '../../services/api';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import Chatbot from '../../components/Chatbot';
 
 const PromoCountdown = () => {
   const [timeLeft, setTimeLeft] = useState({ h: 6, m: 45, s: 30 });
@@ -461,6 +462,7 @@ export default function VendorMenu({ user, onLogout }) {
         )}
       </AnimatePresence>
       <Footer />
+      <Chatbot user={user} />
     </div>
   );
 }

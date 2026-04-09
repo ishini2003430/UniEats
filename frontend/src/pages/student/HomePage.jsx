@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import heroImage from "../../assets/image1.jpg";
 import Header from "../../components/Header";
 import Footer from "../../components/Footer";
+import Chatbot from "../../components/Chatbot";
 
 export default function HomePage({ user, onLogout }) {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ export default function HomePage({ user, onLogout }) {
       </section>
       
       <Footer />
+      <Chatbot user={user} />
     </div>
   );
 }

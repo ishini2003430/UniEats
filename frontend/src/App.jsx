@@ -26,8 +26,7 @@ import HomePage from "./pages/student/HomePage";
 import FoodManagement from "./pages/vendor/FoodManagement";
 
 
-import ReviewsPage from './pages/ReviewsPage'; // Adjust the path based on your folder structure
-import StudentProfile from "./pages/StudentProfile";
+// (duplicates removed) ReviewsPage and StudentProfile already imported above
 
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
@@ -40,15 +39,33 @@ function App() {
   // ✅ Restore user (localStorage ONLY — clean)
   useEffect(() => {
     try {
-      // Use sessionStorage so each browser tab can have independent session state.
-      const raw = sessionStorage.getItem("unieatsUser") || localStorage.getItem("unieatsUser");
-      if (raw) {
-        setUser(JSON.parse(raw));
-      }
+      // Strict per-tab sessions: restore only from sessionStorage.
+      const raw = sessionStorage.getItem("unieatsUser");
+      if (raw) setUser(JSON.parse(raw));
     } catch (err) {
       console.error("Restore error:", err);
     }
     setLoading(false);
+
+    // Listen for cross-tab logout events to clear state if another tab logged out.
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key === "unieats-logout") {
+        setUser(null);
+        try { sessionStorage.removeItem("unieatsUser"); } catch (e) {}
+      }
+      // Optional: if another tab explicitly set a session for this tab, we can pick it up.
+      if (e.key === "unieatsUser" && e.newValue) {
+        try {
+          const payload = JSON.parse(e.newValue);
+          // Only auto-apply if it was set in sessionStorage (not a persistent cross-tab save)
+          if (e.storageArea === sessionStorage) setUser(payload);
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   // ✅ Login
@@ -58,8 +75,7 @@ function App() {
     try {
       sessionStorage.setItem("unieatsUser", JSON.stringify(nextUser));
     } catch (e) {
-      // fallback
-      localStorage.setItem("unieatsUser", JSON.stringify(nextUser));
+      console.error("Failed to persist session to sessionStorage", e);
     }
   };
 
@@ -68,9 +84,17 @@ function App() {
     setUser(null);
     try {
       sessionStorage.removeItem("unieatsUser");
-    } catch (e) {
+    } catch (e) {}
+    try {
       localStorage.removeItem("unieatsUser");
-    }
+    } catch (e) {}
+
+    // Broadcast logout to other tabs
+    try {
+      localStorage.setItem("unieats-logout", String(Date.now()));
+      // remove the key to avoid accumulating history; storage event still fires
+      localStorage.removeItem("unieats-logout");
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -116,7 +140,9 @@ function App() {
     "/privacy",
   ];
 
-  if (publicPaths.includes(location.pathname)) {
+  // If the current path is public and the user is NOT logged in, render public routes.
+  // If a user is logged in, prefer the logged-in route handling so refresh doesn't force the login page.
+  if (publicPaths.includes(location.pathname) && !user) {
     return (
       <Routes>
         <Route path="/" element={<Login onLogin={handleLogin} />} />
@@ -288,8 +314,6 @@ function App() {
 
       {/* Fallback */}
       <Route path="*" element={<Login onLogin={handleLogin} />} />
-
-      <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
 
     </Routes>
   );

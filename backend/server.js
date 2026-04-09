@@ -60,6 +60,8 @@ const pickupSlotRoutes = require("./src/routes/order-n-cancellation/pickupSlotRo
 const orderRoutes = require("./src/routes/order-n-cancellation/orderRoutes");
 const notificationRoutes = require("./src/routes/order-n-cancellation/notificationRoutes");
 const foodRoutes = require("./src/routes/FoodManagement/foodRoutes");
+const favoriteRoutes = require("./src/routes/favoriteRoutes");
+const chatbotRoutes = require("./src/routes/chatbotRoutes");
 
 
 app.use("/api/auth", authRoutes);
@@ -73,6 +75,8 @@ app.use("/api/slots", pickupSlotRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/favorites", favoriteRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 
 // Test route
