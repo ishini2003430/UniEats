@@ -6,7 +6,6 @@ import heroImage from '../../assets/image1.jpg';
 import api from '../../services/api';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
-import Chatbot from '../../components/Chatbot';
 
 // Promo section relocated to dynamic combo engine
 
@@ -649,7 +648,6 @@ export default function VendorMenu({ user, onLogout }) {
       </motion.button>
 
       <Footer />
-      <Chatbot user={user} />
     </div>
   );
 }

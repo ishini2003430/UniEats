@@ -14,13 +14,13 @@ async function geminiGenerateWithRetry(question) {
       {
         parts: [
           {
-            text: `You are UniEats assistant. Answer concisely.\nUser: ${question}`,
+            text: `SYSTEM: You are UniEats assistant. Be friendly, helpful and concise. You can answer general chit-chat (greetings, how are you, small talk) and product-specific questions about UniEats. Always be polite and avoid providing disallowed content. If unsure, ask a clarifying question.\n\nUser: ${question}`,
           },
         ],
       },
     ],
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.6,
       maxOutputTokens: 500,
     },
   };
@@ -71,6 +71,18 @@ async function geminiGenerateWithRetry(question) {
   }
 
   throw new Error("gemini-unavailable");
+}
+
+// Local small-talk fallback when LLMs are unavailable
+function localSmallTalk(question) {
+  if (!question || typeof question !== 'string') return null;
+  const q = question.trim().toLowerCase();
+  if (/^(hi|hello|hey)\b/.test(q)) return "Hello! 👋 How can I help you with UniEats today?";
+  if (/(how are you|how's it going|how r u)/.test(q)) return "I'm a friendly assistant — ready to help you order or find vendors!";
+  if (/thank(s| you)|thx\b/.test(q)) return "You're welcome — happy to help!";
+  if (/(bye|goodbye|see you)/.test(q)) return "Goodbye! Come back anytime — enjoy your meal 🍽️";
+  if (/what('?s| is) your name/.test(q)) return "I'm UniEats Assistant — here to help with campus orders and questions.";
+  return null;
 }
 
 const answerUnknown = () => ({
@@ -172,7 +184,7 @@ exports.handleQuestion = async (req, res) => {
 
     if (OPENAI_KEY) {
       try {
-        const prompt = `You are UniEats assistant. Answer concisely.\nUser: ${question}`;
+        const prompt = `You are UniEats assistant. Be friendly and helpful. Answer concisely.\nUser: ${question}`;
 
         const resp = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
@@ -183,35 +195,32 @@ exports.handleQuestion = async (req, res) => {
           body: JSON.stringify({
             model: "gpt-3.5-turbo",
             messages: [
-              { role: "system", content: "You are UniEats assistant." },
+              { role: "system", content: "You are UniEats assistant. Be helpful, concise and friendly." },
               { role: "user", content: prompt },
             ],
-            max_tokens: 400,
-            temperature: 0.2,
+            max_tokens: 600,
+            temperature: 0.6,
           }),
         });
 
         if (!resp.ok) {
           const txt = await resp.text();
           console.error("OpenAI error:", resp.status, txt);
-          return res.json({
-            answer: "Sorry, the assistant service returned an error.",
-          });
+          // don't immediately return: try local fallback
+        } else {
+          const data = await resp.json();
+          const reply = data?.choices?.[0]?.message?.content?.trim();
+          if (reply) return res.json({ answer: reply });
         }
-
-        const data = await resp.json();
-        const reply = data?.choices?.[0]?.message?.content?.trim();
-
-        return res.json({
-          answer: reply || "Sorry, no answer from assistant.",
-        });
       } catch (err) {
         console.error("OpenAI failed:", err);
-        return res.json({
-          answer: "Sorry, the assistant is temporarily unavailable.",
-        });
+        // continue to local fallback
       }
     }
+
+    // Local small-talk fallback when providers cannot answer
+    const local = localSmallTalk(question);
+    if (local) return res.json({ answer: local });
 
     return res.json(answerUnknown());
   } catch (err) {

@@ -71,8 +71,6 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/profile", profileRoutes); // ✅ ADD THIS
 app.use("/api/reviews", reviewRoutes); // ✅ ADD THIS
 
-const favoriteRoutes = require("./src/routes/favoriteRoutes");
-app.use("/api/favorites", favoriteRoutes);
 
 app.use("/api/slots", pickupSlotRoutes);
 app.use("/api/foods", foodRoutes);

@@ -122,18 +122,11 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
         </div>
 
         <nav className="hidden lg:flex items-center gap-8">
-
-          <button onClick={() => navigate('/vendor-list')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Menu</button>
-          <button onClick={() => navigate('/student/favorites')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Favorites</button>
-          <button onClick={() => navigate('/my-orders')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Orders</button>
-          <button onClick={() => navigate('/vendor-list')} className="text-sm font-semibold text-slate-600 hover:text-orange-500 transition-colors">Offers</button>
-
           <button onClick={() => navigate('/')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Home</button>
           <button onClick={() => navigate('/vendor-list')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Vendors</button>
           <button onClick={() => navigate('/student/favorites')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Favorites</button>
           <button onClick={() => navigate('/my-orders')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Orders</button>
           <button onClick={() => navigate('/offers')} className="text-[15px] font-bold text-slate-700 hover:text-orange-600 transition-colors">Offers</button>
-
         </nav>
 
         {/* RIGHT: Actions & Profile */}
@@ -176,9 +169,6 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
               )}
             </div>
 
-
-            <button onClick={() => safeNavigate("/student/order")} className="p-2.5 rounded-full text-slate-500 hover:bg-slate-100 transition-all">
-              <ShoppingCart className="w-5 h-5" />
 
             <button
               onClick={() => navigate("/student/order")}
