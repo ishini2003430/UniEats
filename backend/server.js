@@ -27,6 +27,14 @@ const io = new Server(server, {
 
 initSocket(io);
 
+// start auto-cancel monitor for unapproved orders
+try {
+  const { startAutoCancelMonitor } = require("./src/utils/autoCancel");
+  startAutoCancelMonitor();
+} catch (err) {
+  console.error("Failed to start auto-cancel monitor:", err);
+}
+
 // ✅ Middleware (ORDER MATTERS)
 app.use(cors());
 app.use(express.json());
@@ -52,6 +60,8 @@ const pickupSlotRoutes = require("./src/routes/order-n-cancellation/pickupSlotRo
 const orderRoutes = require("./src/routes/order-n-cancellation/orderRoutes");
 const notificationRoutes = require("./src/routes/order-n-cancellation/notificationRoutes");
 const foodRoutes = require("./src/routes/FoodManagement/foodRoutes");
+const favoriteRoutes = require("./src/routes/favoriteRoutes");
+const chatbotRoutes = require("./src/routes/chatbotRoutes");
 
 
 app.use("/api/auth", authRoutes);
@@ -61,13 +71,13 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/profile", profileRoutes); // ✅ ADD THIS
 app.use("/api/reviews", reviewRoutes); // ✅ ADD THIS
 
-const favoriteRoutes = require("./src/routes/favoriteRoutes");
-app.use("/api/favorites", favoriteRoutes);
 
 app.use("/api/slots", pickupSlotRoutes);
 app.use("/api/foods", foodRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/favorites", favoriteRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 
 // Test route

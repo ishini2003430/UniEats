@@ -10,20 +10,52 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
   const [notifications, setNotifications] = useState([]);
   
   const dropdownRef = useRef(null);
+
+
+  // fallback to persisted user if props are missing (check sessionStorage first)
+  let storedUser = null;
+  try {
+    if (typeof window !== "undefined") {
+      const raw = sessionStorage.getItem("unieatsUser") || localStorage.getItem("unieatsUser");
+      storedUser = raw ? JSON.parse(raw) : null;
+    }
+  } catch (e) {
+    storedUser = null;
+  }
+
+
+  const profileData = profile || user || storedUser || {};
+
   const notifyRef = useRef(null);
+
+  // Defensive: ensure onLogout exists
+  const safeLogout = () => {
+    try {
+      if (typeof onLogout === 'function') onLogout();
+    } catch (err) {
+      console.error('onLogout handler failed', err);
+    }
+  };
+
+  const safeNavigate = (to) => {
+    try {
+      if (!to) return;
+      navigate(to);
+    } catch (err) {
+      console.error('Navigation failed', err, to);
+    }
+  };
   
-  // Use profile or user prop to get the most updated data
-  const profileData = profile || user;
+
 
   // --- CONSOLIDATED NOTIFICATION LOGIC ---
   useEffect(() => {
-    // Ensure we have profileData before running logic
-    if (!profileData) return;
+    // Guard: only run when we have a populated profile object (avoid empty {} causing loops)
+    const points = profile?.loyaltyPoints || user?.loyaltyPoints || (storedUser && storedUser.loyaltyPoints) || 0;
+    if (!profile && !user && !storedUser) return;
 
     const newNotifications = [];
-    const points = profileData.loyaltyPoints || 0;
 
-    // 1. Milestone Notification: 1000 Points (Displayed First)
     if (points >= 1000) {
       newNotifications.push({
         id: 'milestone-1000',
@@ -34,7 +66,6 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
       });
     }
 
-    // 2. Current Point Balance Notification
     if (points > 0) {
       newNotifications.push({
         id: 'loyalty-balance',
@@ -45,8 +76,12 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
       });
     }
 
-    setNotifications(newNotifications);
-  }, [profileData, profileData?.loyaltyPoints]); // Re-runs if points update or user object changes
+    // Avoid unnecessary state updates if notifications unchanged
+    setNotifications((prev) => {
+      if (prev.length === newNotifications.length && prev.every((p, i) => p.id === newNotifications[i]?.id)) return prev;
+      return newNotifications;
+    });
+  }, [profile?.loyaltyPoints, user?.loyaltyPoints, storedUser && storedUser.loyaltyPoints]);
 
   // --- UI HELPERS ---
   useEffect(() => {
@@ -68,7 +103,16 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* LEFT: Logo Section */}
-        <div className="flex items-center gap-2.5 cursor-pointer group" onClick={() => navigate('/')}>
+        <div
+          className="flex items-center gap-2.5 cursor-pointer group"
+          onClick={() => {
+            // Navigate to a role-appropriate home instead of always '/'
+            const role = profileData?.role || (profileData?.user?.role);
+            if (role === 'vendor') return navigate('/dashboard');
+            if (role === 'admin') return navigate('/admin');
+            return navigate('/');
+          }}
+        >
           <div className="bg-orange-500 p-2 rounded-xl text-white text-xl shadow-lg shadow-orange-200 group-hover:scale-110 transition-transform">
             🍴
           </div>
@@ -125,6 +169,7 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
               )}
             </div>
 
+
             <button
               onClick={() => navigate("/student/order")}
               className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all group"
@@ -139,6 +184,7 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
                   {cartItemCount}
                 </motion.span>
               )}
+
             </button>
           </div>
 
@@ -153,7 +199,7 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
                   {profileData?.name || "Student"}
                 </p>
                 <p className="text-[11px] text-slate-400 font-medium mt-1">
-                  {profileData?.email || "student@sliit.lk"}
+                  {profileData?.email || ""}
                 </p>
               </div>
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white font-bold flex items-center justify-center shadow-md group-hover:shadow-lg transition-all active:scale-95">
@@ -164,25 +210,27 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
             {isDropdownOpen && (
               <div className="absolute right-0 mt-3 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-200 z-[60]">
                 <div className="px-5 py-4 border-b border-slate-50 sm:hidden">
-                  <p className="text-sm font-bold text-slate-900">{profileData?.name}</p>
-                  <p className="text-[11px] text-slate-400 truncate">{profileData?.email}</p>
+
+                  <p className="text-sm font-bold text-slate-900">{profileData?.name || "Student"}</p>
+                  <p className="text-[11px] text-slate-400 truncate">{profileData?.email || ""}</p>
+
                 </div>
                 <div className="py-2">
-                  <button onClick={() => { navigate('/profile'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-5 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+                  <button onClick={() => { safeNavigate('/profile'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-5 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
                     <User className="w-4 h-4" /> Profile
                   </button>
-                  <button onClick={() => { navigate('/reviews'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+                  <button onClick={() => { safeNavigate('/reviews'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
                     <Star className="w-4 h-4" /> Reviews
                   </button>
-                  <button onClick={() => { navigate('/student/favorites'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+                  <button onClick={() => { safeNavigate('/student/favorites'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
                     <Heart className="w-4 h-4" /> Favorites
                   </button>
-                  <button onClick={() => { navigate('/my-orders'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
+                  <button onClick={() => { safeNavigate('/my-orders'); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-semibold text-slate-600 hover:bg-orange-50 hover:text-orange-600 transition-colors">
                     <Package className="w-4 h-4" /> Orders
                   </button>
                 </div>
                 <div className="pt-2 border-t border-slate-50">
-                  <button onClick={() => { onLogout(); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
+                  <button onClick={() => { safeLogout(); setIsDropdownOpen(false); }} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
                     <LogOut className="w-4 h-4" /> Log out
                   </button>
                 </div>

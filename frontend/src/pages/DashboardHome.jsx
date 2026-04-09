@@ -6,10 +6,48 @@ import api from "../services/api";
 import StatsCard from "./StatsCard";
 import ActionCard from "./ActionCard";
 import ActivityFeed from "./ActivityFeed";
+import { useCallback } from "react";
 
 function DashboardHome({ setView }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+
+  const fetchRecentOrders = useCallback(async (limit = 8) => {
+    setOrdersLoading(true);
+    try {
+      const res = await api.get("/api/admin/orders", { params: { limit } });
+      let payload = res.data;
+      // support `{ orders: [...] }` or raw array
+      if (payload && payload.orders) payload = payload.orders;
+
+      if (Array.isArray(payload)) {
+        // normalize entries to expected shape for UI
+        const mapped = payload.map((o) => {
+          const status = o.status || (Array.isArray(o.vendorOrders) && o.vendorOrders[0]?.status) || "Pending";
+          const student = o.student || (o.studentId ? (typeof o.studentId === 'object' ? o.studentId : { _id: o.studentId }) : null);
+          const createdAt = o.createdAt || (o.createdAt === 0 ? 0 : o.createdAt) || (o.createdAt ? o.createdAt : o.createdAt);
+          return {
+            _id: o._id,
+            orderId: o.orderId || o._id,
+            student,
+            status,
+            createdAt: o.createdAt || (o.createdAt === 0 ? 0 : o.createdAt) || new Date().toISOString(),
+            raw: o,
+          };
+        });
+        setOrders(mapped);
+      } else {
+        setOrders([]);
+      }
+    } catch (err) {
+      console.error("Failed to load admin orders", err);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -24,9 +62,14 @@ function DashboardHome({ setView }) {
     };
 
     fetchStats();
+    fetchRecentOrders(8);
 
     const interval = setInterval(fetchStats, 15000);
-    return () => clearInterval(interval);
+    const ordersInterval = setInterval(() => fetchRecentOrders(8), 15000);
+    return () => {
+      clearInterval(interval);
+      clearInterval(ordersInterval);
+    };
   }, []);
 
   const systemHealthy =
@@ -81,8 +124,8 @@ function DashboardHome({ setView }) {
 
           <StatsCard
             title="Orders Today"
-            value="--"
-            trend="Coming soon"
+            value={typeof stats?.ordersToday === 'number' ? stats.ordersToday : '--'}
+            trend="Today"
             trendDirection="up"
             icon={ShoppingBag}
             color="bg-rose-500"
@@ -126,8 +169,40 @@ function DashboardHome({ setView }) {
 
       {/* Activity Feed + System Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
           <ActivityFeed onViewAll={() => setView("allActivities")} />
+
+          <div className="bg-white border border-slate-100 rounded-2xl p-4">
+            <h3 className="text-sm font-medium text-slate-800 mb-3">Order Tracking</h3>
+
+            {ordersLoading ? (
+              <div className="text-sm text-slate-500">Loading recent orders…</div>
+            ) : orders.length === 0 ? (
+              <div className="text-sm text-slate-500">No recent orders</div>
+            ) : (
+              <ul className="space-y-3">
+                {orders.map((o) => (
+                  <li key={o._id} className="flex items-center justify-between bg-slate-50 border rounded-lg p-3">
+                    <div>
+                      <div className="text-sm font-medium text-slate-900">{o.orderId}</div>
+                      <div className="text-xs text-slate-500">{o.student?.name || 'Student'}</div>
+                      <div className="text-xs text-slate-400 mt-1">{new Date(o.createdAt).toLocaleString()}</div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <div className="text-sm text-slate-700">{o.status}</div>
+                      <div className={`text-xs px-2 py-1 rounded-full ${
+                        o.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                        o.status === 'Preparing' ? 'bg-sky-100 text-sky-700' :
+                        o.status === 'Ready' ? 'bg-emerald-100 text-emerald-700' :
+                        o.status === 'Completed' ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-100 text-slate-700'
+                      }`}>{o.status}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <motion.div
