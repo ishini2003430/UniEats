@@ -301,7 +301,7 @@ export default function StudentOrderProcessPage({ user }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-50 py-8">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 py-8 font-sans">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="absolute -top-20 -right-16 h-56 w-56 rounded-full bg-amber-200/40 blur-3xl" />
@@ -618,6 +618,7 @@ export default function StudentOrderProcessPage({ user }) {
               </div>
             </div>
           )}
+
 
           {step === 4 && (
             <div className="space-y-6 py-10 flex flex-col items-center">

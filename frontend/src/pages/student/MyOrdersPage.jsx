@@ -114,14 +114,14 @@ export default function MyOrdersPage({ user }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 font-sans">
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
         {/* HEADER */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border bg-white p-6"
+          className="rounded-3xl border border-slate-200/60 bg-white/80 backdrop-blur-xl p-8 shadow-md"
         >
           <button onClick={() => navigate("/")} className="flex gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Back
@@ -180,9 +180,9 @@ export default function MyOrdersPage({ user }) {
           >
             <motion.div
               onClick={(e) => e.stopPropagation()}
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="bg-white p-6 rounded-2xl w-full max-w-md shadow-xl"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white/95 backdrop-blur-xl border border-slate-200/60 p-7 rounded-3xl w-full max-w-md shadow-2xl"
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold">Cancel Order</h3>
@@ -209,13 +209,16 @@ export default function MyOrdersPage({ user }) {
                 </div>
               )}
 
-              <button
+              <motion.button
                 onClick={submitCancel}
                 disabled={cancelLoading}
-                className="mt-4 w-full bg-rose-600 text-white py-2 rounded-lg"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="group relative mt-6 w-full inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-rose-500 to-red-600 text-white py-3.5 font-bold shadow-lg shadow-rose-500/25 overflow-hidden transition-all disabled:opacity-50"
               >
-                {cancelLoading ? "Cancelling..." : "Confirm Cancel"}
-              </button>
+                <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
+                <span className="relative drop-shadow-sm">{cancelLoading ? "Cancelling..." : "Confirm Cancel"}</span>
+              </motion.button>
             </motion.div>
           </motion.div>
         )}

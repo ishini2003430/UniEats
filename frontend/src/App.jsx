@@ -255,6 +255,7 @@ function App() {
               element={<MyOrdersPage user={user} />}
             />
 
+
             {/* Favorites */}
             <Route
               path="/student/favorites"
@@ -283,6 +284,9 @@ function App() {
             <Route path="/privacy" element={<Privacypage />} />
 
             {/* Fallback */}
+
+            {/* fallback */}
+
             <Route
               path="*"
               element={<HomePage user={user} onLogout={handleLogout} />}
@@ -307,13 +311,15 @@ function App() {
 
       {/* Public Pages */}
       <Route path="/helpcenter" element={<HelpCenter />} />
-      <Route path="/rate-us" element={<ReviewsPage />} />
+      <Route path="/rate-us" element={<div className="text-center p-10 font-bold">Reviews Page Coming Soon</div>} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<Privacypage />} />
 
 
+
       {/* Fallback */}
       <Route path="*" element={<Login onLogin={handleLogin} />} />
+
 
     </Routes>
   );

@@ -75,11 +75,12 @@ function Register({ onLogin }) {
 
     try {
       if (role === "student") {
-        await api.post("/api/users/register/student", {
+        await api.post("/api/users/register", {
           name,
           email,
           password,
           contactNumber,
+          role: "student"
         });
 
         setSuccess("Registration successful. Fetching profile...");
@@ -99,8 +100,9 @@ function Register({ onLogin }) {
         formData.append("vendorPhone", vendorPhone);
         formData.append("vendorLocation", vendorLocation);
         formData.append("vendorLogo", vendorLogo);
+        formData.append("role", "vendor");
 
-        await api.post("/api/users/register/vendor", formData, {
+        await api.post("/api/users/register", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
 
