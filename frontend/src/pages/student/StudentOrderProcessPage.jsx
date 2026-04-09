@@ -9,6 +9,7 @@ import {
   Loader2,
   ShieldCheck,
   Store,
+  Ticket,
   Wallet,
 } from "lucide-react";
 import api from "../../services/api";
@@ -35,15 +36,21 @@ const buildOrderRef = () => {
   return `ORD-${ts}-${rand}`;
 };
 
-const computePricing = (items) => {
+const computePricing = (items, voucherDiscount = 0) => {
   const subtotal = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
-  const discountRate = items.length >= 3 ? 0.1 : 0;
-  const discountAmount = subtotal * discountRate;
+  const bulkDiscountRate = items.length >= 3 ? 0.1 : 0;
+  const bulkDiscountAmount = subtotal * bulkDiscountRate;
+  
+  // Total after bulk discount but before voucher
+  const intermediateTotal = subtotal - bulkDiscountAmount;
+  const total = Math.max(0, intermediateTotal - voucherDiscount);
+
   return {
     subtotal,
-    discountRate,
-    discountAmount,
-    total: subtotal - discountAmount,
+    bulkDiscountRate,
+    bulkDiscountAmount,
+    voucherDiscount,
+    total,
   };
 };
 
@@ -61,6 +68,11 @@ export default function StudentOrderProcessPage({ user }) {
   const [selectedSlotByVendor, setSelectedSlotByVendor] = useState({});
   const [checkoutError, setCheckoutError] = useState("");
   const [latestOrderRefs, setLatestOrderRefs] = useState([]);
+
+  // Voucher States
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucherDiscount, setAppliedVoucherDiscount] = useState(0);
+  const [voucherError, setVoucherError] = useState("");
 
   const studentHeaders = useMemo(() => {
     if (!user?._id) return null;
@@ -107,7 +119,11 @@ export default function StudentOrderProcessPage({ user }) {
     }));
   }, [selectedFoods]);
 
-  const pricing = useMemo(() => computePricing(selectedFoods), [selectedFoods]);
+  // Pricing memo including voucher discount
+  const pricing = useMemo(() => 
+    computePricing(selectedFoods, appliedVoucherDiscount), 
+    [selectedFoods, appliedVoucherDiscount]
+  );
 
   const availableSlotsByVendor = useMemo(() => {
     const map = new Map();
@@ -186,11 +202,46 @@ export default function StudentOrderProcessPage({ user }) {
     return vendorGroups.every((group) => Boolean(selectedSlotByVendor[group.vendorId]));
   }, [vendorGroups, selectedSlotByVendor]);
 
+  // Voucher Handler: Calculates 50% discount based on the price after bulk discount
+  const handleApplyVoucher = () => {
+    setVoucherError("");
+    const input = voucherInput.toUpperCase();
+    
+    if (input.startsWith("EATS-") || input.startsWith("UNIEATS-")) {
+      const subtotal = selectedFoods.reduce((sum, item) => sum + Number(item.price || 0), 0);
+      const bulkDiscountAmount = selectedFoods.length >= 3 ? subtotal * 0.1 : 0;
+      const intermediateTotal = subtotal - bulkDiscountAmount;
+      
+      // Calculate 50% discount
+      const fiftyPercentOff = intermediateTotal * 0.5;
+      
+      setAppliedVoucherDiscount(fiftyPercentOff);
+      setVoucherInput("");
+    } else {
+      setVoucherError("Invalid voucher code");
+    }
+  };
+
+  const handleSuccessfulOrderPoints = async (cartTotal) => {
+    try {
+      if (cartTotal > 0 && user?.email) {
+        await api.post('/api/profile/add-points', {
+          email: user.email,
+          orderAmount: cartTotal,
+          description: "Canteen Order Purchase"
+        });
+        console.log("Loyalty points updated successfully!");
+      }
+    } catch (err) {
+      console.error("Points update failed:", err);
+    }
+  };
+
   const placeOrder = async () => {
     if (!studentHeaders || !user?._id) return;
 
     if (!selectedFoods.length) {
-      setCheckoutError("No valid food items found in URL. Use /student/order?foodIds=<id1,id2>");
+      setCheckoutError("No valid food items found in URL.");
       return;
     }
 
@@ -205,11 +256,13 @@ export default function StudentOrderProcessPage({ user }) {
     try {
       const orderId = buildOrderRef();
 
-      await api.post(
+      const response = await api.post(
         "/api/orders",
         {
           studentId: user._id,
           orderId,
+          voucherApplied: appliedVoucherDiscount > 0,
+          totalAmount: pricing.total,
           vendorSelections: vendorGroups.map((group) => ({
             vendorId: group.vendorId,
             slotId: selectedSlotByVendor[group.vendorId],
@@ -219,8 +272,11 @@ export default function StudentOrderProcessPage({ user }) {
         { headers: studentHeaders }
       );
 
-      setLatestOrderRefs([orderId]);
-      setStep(4);
+      if (response.status === 201 || response.status === 200) {
+        await handleSuccessfulOrderPoints(pricing.total);
+        setLatestOrderRefs([orderId]);
+        setStep(4);
+      }
     } catch (err) {
       setCheckoutError(err?.response?.data?.message || "Failed to place order");
       setStep(4);
@@ -238,11 +294,11 @@ export default function StudentOrderProcessPage({ user }) {
   }
 
   const stepMeta = [
-  { title: "Review", desc: "Items and totals" },
-  { title: "Slots", desc: "Pick time per vendor" },
-  { title: "Confirm", desc: "Place your order" }, 
-  { title: "Result", desc: "Order outcome" },
-];
+    { title: "Review", desc: "Items and totals" },
+    { title: "Slots", desc: "Pick time per vendor" },
+    { title: "Confirm", desc: "Place your order" },
+    { title: "Result", desc: "Order outcome" },
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 py-8 font-sans">
@@ -262,13 +318,13 @@ export default function StudentOrderProcessPage({ user }) {
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-slate-900">Complete Your Order</h1>
                 <p className="text-sm text-slate-600 mt-2 max-w-2xl">
-                 
+                  Review your items and select pickup slots to finalize your meal.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 rounded-xl bg-slate-900 text-white px-3 py-2 text-xs font-medium">
                 <ShieldCheck className="w-4 h-4" />
-                Secure Demo Flow
+                Secure Checkout
               </div>
             </div>
 
@@ -324,7 +380,7 @@ export default function StudentOrderProcessPage({ user }) {
                 <h3 className="text-lg font-semibold text-slate-900">Review Items, Prices and Discounts</h3>
 
                 {selectedFoods.length === 0 ? (
-                  <div className="text-sm text-slate-500">No valid food items found for provided ids.</div>
+                  <div className="text-sm text-slate-500">No valid food items found.</div>
                 ) : (
                   <>
                     {hasUnorderableItems && (
@@ -368,21 +424,59 @@ export default function StudentOrderProcessPage({ user }) {
               </div>
 
               <aside className="xl:col-span-2">
-                <div className="sticky top-24 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                  <h4 className="font-semibold text-slate-900 mb-3">Order Summary</h4>
+                <div className="sticky top-24 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm shadow-sm">
+                  <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-amber-500" /> Your Order Summary
+                  </h4>
 
-                  <div className="space-y-2">
+                  <div className="mb-6 p-3 bg-white rounded-xl border border-slate-200">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block flex items-center gap-1">
+                        <Ticket className="w-3 h-3" /> Voucher Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="UNIEATS-XXXXXXXX"
+                        value={voucherInput}
+                        onChange={(e) => setVoucherInput(e.target.value)}
+                        className="flex-1 px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
+                      />
+                      <button 
+                        onClick={handleApplyVoucher}
+                        className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-600 transition-colors shadow-sm shadow-amber-200"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                    {voucherError && <p className="text-[10px] text-rose-500 mt-1 ml-1 font-medium">{voucherError}</p>}
+                    {appliedVoucherDiscount > 0 && (
+                       <p className="text-[10px] text-emerald-600 mt-1 ml-1 font-medium flex items-center gap-1">
+                         <CheckCircle2 className="w-3 h-3" /> 50% Voucher applied successfully!
+                       </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 border-t border-slate-200 pt-4">
                     <div className="flex justify-between py-1">
                       <span className="text-slate-500">Subtotal</span>
-                      <span>{formatLkr(pricing.subtotal)}</span>
+                      <span className="font-medium">{formatLkr(pricing.subtotal)}</span>
                     </div>
-                    <div className="flex justify-between py-1">
-                      <span className="text-slate-500">Discount</span>
-                      <span className="text-emerald-700">
-                        {pricing.discountRate ? `-${formatLkr(pricing.discountAmount)} (10%)` : "-"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-1 mt-1 pt-2 border-t border-slate-200 font-semibold">
+                    
+                    {pricing.bulkDiscountAmount > 0 && (
+                      <div className="flex justify-between py-1">
+                        <span className="text-slate-500">Bulk Discount (10%)</span>
+                        <span className="text-emerald-600 font-medium">-{formatLkr(pricing.bulkDiscountAmount)}</span>
+                      </div>
+                    )}
+
+                    {pricing.voucherDiscount > 0 && (
+                      <div className="flex justify-between py-1">
+                        <span className="text-slate-500">Voucher Discount (50%)</span>
+                        <span className="text-emerald-600 font-medium">-{formatLkr(pricing.voucherDiscount)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between py-1 mt-2 pt-3 border-t border-slate-200 font-bold text-lg text-slate-900">
                       <span>Total</span>
                       <span>{formatLkr(pricing.total)}</span>
                     </div>
@@ -391,7 +485,7 @@ export default function StudentOrderProcessPage({ user }) {
                   <button
                     onClick={() => setStep(2)}
                     disabled={!selectedFoods.length || hasUnorderableItems}
-                    className="w-full mt-4 px-4 py-2.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full mt-6 px-4 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-slate-200"
                   >
                     Continue To Slot Selection
                   </button>
@@ -430,10 +524,10 @@ export default function StudentOrderProcessPage({ user }) {
                             {groupSlots.map((slot) => (
                               <label
                                 key={slot._id}
-                                className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer ${
+                                className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition-all ${
                                   selectedSlotByVendor[group.vendorId] === slot._id
-                                    ? "border-amber-500 bg-amber-50"
-                                    : "border-slate-200"
+                                    ? "border-amber-500 bg-amber-50 ring-1 ring-amber-500"
+                                    : "border-slate-200 hover:border-slate-300"
                                 }`}
                               >
                                 <div>
@@ -446,6 +540,7 @@ export default function StudentOrderProcessPage({ user }) {
                                 <input
                                   type="radio"
                                   name={`slot-${group.vendorId}`}
+                                  className="accent-amber-600 w-4 h-4"
                                   value={slot._id}
                                   checked={selectedSlotByVendor[group.vendorId] === slot._id}
                                   onChange={(e) =>
@@ -465,89 +560,100 @@ export default function StudentOrderProcessPage({ user }) {
                 </div>
               )}
 
-              <div className="flex justify-between">
+              <div className="flex justify-between mt-6">
                 <button
                   onClick={() => setStep(1)}
-                  className="px-4 py-2 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  className="px-6 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition-colors"
                 >
                   Back
                 </button>
                 <button
                   onClick={() => setStep(3)}
                   disabled={!allVendorsHaveSlot}
-                  className="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 rounded-xl bg-slate-900 text-white font-medium hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
-                  Continue
+                  Continue to Confirm
                 </button>
               </div>
             </div>
           )}
 
           {step === 3 && (
-  <div className="space-y-4">
-    <h3 className="text-lg font-semibold text-slate-900">Confirm Your Order</h3>
-    <p className="text-sm text-slate-600">
-      You will pay at pickup. No online payment required.
-    </p>
+            <div className="space-y-6 max-w-2xl mx-auto text-center py-8">
+              <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Almost Done!</h3>
+                <p className="text-slate-600 mb-6">
+                  You will pay <span className="font-bold text-slate-900">{formatLkr(pricing.total)}</span> at the canteen counter upon pickup. 
+                  No online payment is required.
+                </p>
 
-    {checkoutError && (
-      <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm inline-flex items-center gap-2">
-        <AlertCircle className="w-4 h-4" /> {checkoutError}
-      </div>
-    )}
+                {checkoutError && (
+                  <div className="mb-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg px-4 py-3 text-sm inline-flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {checkoutError}
+                  </div>
+                )}
 
-    <div className="flex justify-between">
-      <button
-        onClick={() => setStep(2)}
-        className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200"
-      >
-        Back
-      </button>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => setStep(2)}
+                    className="px-8 py-3 rounded-xl bg-slate-200 text-slate-700 font-bold hover:bg-slate-300 transition-colors"
+                  >
+                    Review Slots
+                  </button>
 
-      <motion.button
-        onClick={placeOrder}
-        disabled={placingOrder}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        className="group relative inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold shadow-lg shadow-emerald-500/25 overflow-hidden transition-all disabled:opacity-50"
-      >
-        <span className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
-        <span className="relative flex items-center gap-2 drop-shadow-sm">
-          {placingOrder ? "Placing Order..." : "Place Order"}
-        </span>
-      </motion.button>
-    </div>
-  </div>
-)}
+                  <button
+                    onClick={placeOrder}
+                    disabled={placingOrder}
+                    className="inline-flex items-center justify-center gap-2 px-10 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 disabled:opacity-50 transition-all shadow-lg shadow-green-100"
+                  >
+                    {placingOrder ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" /> Finalizing...
+                      </>
+                    ) : (
+                      "Place My Order"
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+
           {step === 4 && (
-            <div className="space-y-4">
+            <div className="space-y-6 py-10 flex flex-col items-center">
               {checkoutError ? (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                  <p className="font-medium text-rose-700">Order Unsuccessful</p>
-                  <p className="text-sm text-rose-700 mt-1">{checkoutError}</p>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">Order Failed</h3>
+                  <p className="text-slate-600 mt-2">{checkoutError}</p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 inline-flex items-start gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-700 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-emerald-700">Orders Successful</p>
-                    <div className="text-sm text-emerald-700 mt-1 space-y-1">
-                      {latestOrderRefs.map((ref) => (
-                        <p key={ref}>Reference: {ref}</p>
-                      ))}
-                    </div>
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">Order Placed Successfully!</h3>
+                  <p className="text-slate-600 mt-2 mb-6">Present these codes at the counter:</p>
+                  
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {latestOrderRefs.map((ref) => (
+                      <div key={ref} className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-mono font-bold text-lg tracking-widest shadow-xl">
+                        {ref}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => navigate("/")}
-                  className="px-4 py-2 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
-                >
-                  Back to Dashboard
-                </button>
-              </div>
+              <button
+                onClick={() => navigate("/")}
+                className="mt-8 px-8 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+              >
+                Back to Dashboard
+              </button>
             </div>
           )}
         </section>

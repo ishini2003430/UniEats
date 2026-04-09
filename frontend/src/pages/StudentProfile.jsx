@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import Header from '../../src/components/Header';
 import Footer from '../../src/components/Footer';
 
@@ -9,38 +10,33 @@ const ProfilePage = () => {
   const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({});
+  const [pointsHistory, setPointsHistory] = useState([]);
   
   const fileInputRef = useRef(null);
   const historyRef = useRef(null);
-  
+  const [voucherCode, setVoucherCode] = useState(null);
   const [profileImage, setProfileImage] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
 
   const dietaryOptions = ['Vegetarian', 'Vegan', 'Halal', 'Gluten-Free', 'Kosher', 'Dairy-Free'];
 
-  const pointsHistory = [
-    { id: 1, date: 'Mar 22, 2026', desc: 'Chicken Submarine - Canteen 02', pts: '+45', type: 'earn' },
-    { id: 2, date: 'Mar 20, 2026', desc: 'Iced Coffee redemption', pts: '-150', type: 'redeem' },
-    { id: 3, date: 'Mar 18, 2026', desc: 'Rice & Curry - Main Hall', pts: '+30', type: 'earn' },
-  ];
-
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const email = user?.email;
+
+    if (!email) {
+      setError("No user logged in found.");
+      setLoading(false);
+      return;
+    }
+
     const fetchProfileData = async () => {
-      const user = JSON.parse(localStorage.getItem('user'));
-      const email = user?.email;
-
-      if (!email) {
-        setError("No user logged in found.");
-        setLoading(false);
-        return;
-      }
-
       try {
         const response = await axios.get(`http://localhost:5000/api/profile/fetch/${email}`);
         setProfile(response.data);
         setFormData(response.data);
+        setPointsHistory(response.data.recentActivity || response.data.pointsHistory || []);
         
-        // Load image from localStorage only
         const savedImg = localStorage.getItem(`profile_img_${email}`);
         if (savedImg) setProfileImage(savedImg);
       } catch (err) {
@@ -49,12 +45,48 @@ const ProfilePage = () => {
         setLoading(false);
       }
     };
+
     fetchProfileData();
+
+    const socket = io("http://localhost:5000");
+    socket.on(`pointsUpdated_${email}`, (data) => {
+      // This ensures the Header notification updates in real-time via socket
+      setProfile(prev => ({ ...prev, loyaltyPoints: data.newBalance }));
+      if (data.activity) {
+        setPointsHistory(prev => [data.activity, ...prev]);
+      }
+    });
+
+    return () => socket.disconnect();
   }, []);
 
-  const handleImageClick = () => {
-    if (isEditing) fileInputRef.current.click();
+  const handleClaimFreeMeal = async () => {
+    if (window.confirm("Redeem 1000 points for a 50% Discount Voucher?")) {
+      try {
+        setLoading(true);
+        const response = await axios.post(`http://localhost:5000/api/profile/add-points`, {
+          email: profile.email,
+          orderAmount: -1000, 
+          description: "Redeemed: 50% Discount Voucher"
+        });
+
+        // Trigger immediate state update for Header notifications
+        const newBalance = response.data?.newBalance ?? (profile.loyaltyPoints - 1000);
+        setProfile(prev => ({ ...prev, loyaltyPoints: newBalance }));
+        
+        const randomCode = `EATS-50OFF-${Math.random().toString(36).toUpperCase().slice(2, 7)}`;
+        setVoucherCode(randomCode);
+        
+        alert("Points Redeemed! Your notification and balance have been updated.");
+      } catch (err) {
+        alert(err.response?.data?.message || "Error redeeming points.");
+      } finally {
+        setLoading(false);
+      }
+    }
   };
+
+  const handleImageClick = () => { if (isEditing) fileInputRef.current.click(); };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -63,67 +95,44 @@ const ProfilePage = () => {
       reader.onloadend = () => {
         const base64String = reader.result;
         setProfileImage(base64String);
-        // Persist immediately to localStorage for frontend-only update
-        if (profile?.email) {
-          localStorage.setItem(`profile_img_${profile.email}`, base64String);
-        }
+        if (profile?.email) localStorage.setItem(`profile_img_${profile.email}`, base64String);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleInputChange = (e) => { setFormData({ ...formData, [e.target.name]: e.target.value }); };
 
   const handleDietaryChange = (pref) => {
     const currentPrefs = formData.dietaryPreferences || [];
-    const newPrefs = currentPrefs.includes(pref)
-      ? currentPrefs.filter((p) => p !== pref)
-      : [...currentPrefs, pref];
+    const newPrefs = currentPrefs.includes(pref) ? currentPrefs.filter((p) => p !== pref) : [...currentPrefs, pref];
     setFormData({ ...formData, dietaryPreferences: newPrefs });
   };
 
   const handleSave = async () => {
     try {
       setLoading(true);
-      // Update text data to backend, but ignore the image
       const response = await axios.put(`http://localhost:5000/api/profile/update/${profile.email}`, formData);
       setProfile(response.data);
       setIsEditing(false);
-    } catch (err) {
-      alert("Update failed");
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { alert("Update failed"); } finally { setLoading(false); }
   };
 
   const handleDeleteAccount = async () => {
     if (!profile?.email) return;
-    const confirmDelete = window.confirm("Are you sure? This will permanently delete your account.");
-    if (confirmDelete) {
+    if (window.confirm("Are you sure? This will permanently delete your account.")) {
       try {
         setLoading(true);
-        const response = await axios.delete(`http://localhost:5000/api/profile/delete/${profile.email}`);
-        if (response.status === 200) {
-          alert("Account deleted successfully.");
-          localStorage.removeItem('user');
-          localStorage.removeItem(`profile_img_${profile.email}`);
-          window.location.href = "/login"; 
-        }
-      } catch (err) {
-        alert("Delete Failed: " + (err.response?.data?.message || "Server Error"));
-      } finally {
-        setLoading(false);
-      }
+        await axios.delete(`http://localhost:5000/api/profile/delete/${profile.email}`);
+        localStorage.removeItem('user');
+        window.location.href = "/login"; 
+      } catch (err) { alert("Delete Failed"); } finally { setLoading(false); }
     }
   };
 
   const toggleHistory = () => {
     setShowHistory(!showHistory);
-    if (!showHistory) {
-      setTimeout(() => historyRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    }
+    if (!showHistory) setTimeout(() => historyRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
   };
 
   const handleLogout = () => {
@@ -131,22 +140,21 @@ const ProfilePage = () => {
     window.location.href = "/login";
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen text-orange-600 font-bold tracking-widest uppercase italic animate-pulse">Loading...</div>;
+  if (loading) return <div className="flex justify-center items-center h-screen text-orange-600 font-bold animate-pulse">Loading...</div>;
   if (error) return <div className="text-red-500 text-center mt-10 font-bold">{error}</div>;
 
   const currentPoints = profile.loyaltyPoints || 0;
-  const nextMilestone = 1000;
-  const progressWidth = Math.min((currentPoints / nextMilestone) * 100, 100);
 
   return (
-    <div className="min-h-screen bg-[#FDFCFB] flex flex-col">
+    <div className="min-h-screen bg-[#FDFCFB] flex flex-col text-left">
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
 
+      {/* The profile prop here sends the updated points to the Header */}
       <Header profile={profile} onLogout={handleLogout} />
 
       <div className="max-w-7xl mx-auto px-10 py-10 w-full">
         <main className="flex-grow w-full">
-          {/* Profile Banner */}
+          {/* Profile Header Card */}
           <div className="bg-[#FFF8F3] rounded-[2rem] p-10 flex flex-col md:flex-row items-center justify-between mb-10 border border-orange-50/50 shadow-sm">
             <div className="flex items-center gap-8">
               <div 
@@ -210,22 +218,18 @@ const ProfilePage = () => {
                             formData.dietaryPreferences?.includes(opt) ? 'border-orange-500 bg-orange-50' : 'border-gray-200'
                           }`}
                         >
-                          {formData.dietaryPreferences?.includes(opt) && (
-                            <div className="w-3 h-3 bg-orange-500 rounded-full" />
-                          )}
+                          {formData.dietaryPreferences?.includes(opt) && <div className="w-3 h-3 bg-orange-500 rounded-full" />}
                         </div>
                         <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900">{opt}</span>
                       </label>
                     ))}
                   </div>
-                  
                   <div className="mt-10">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 block ml-1">Allergies / Other Notes</label>
                     <textarea 
                       name="allergies"
                       value={formData.allergies || ""}
                       onChange={handleInputChange}
-                      placeholder="e.g. peanuts, shellfish..."
                       className="w-full p-5 rounded-2xl border border-gray-200 bg-[#F9FAFB] text-lg font-bold focus:bg-white focus:border-orange-500 outline-none transition-all min-h-[150px] resize-none"
                     />
                   </div>
@@ -239,6 +243,7 @@ const ProfilePage = () => {
           ) : (
             <div className="space-y-10">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                {/* Contact Card */}
                 <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm h-full">
                   <h2 className="text-xl font-bold text-gray-800 mb-10 tracking-tight">Contact Info</h2>
                   <div className="space-y-8">
@@ -248,34 +253,75 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
-                <div className="bg-[#FFF8F3] p-10 rounded-[2rem] border border-orange-100 shadow-sm text-gray-800 flex flex-col justify-between relative overflow-hidden h-full">
-                  <div className="flex justify-between items-start relative z-10">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-orange-500 text-lg">✨</span>
-                        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Rewards</h2>
+                {/* Rewards Card */}
+                <div className="flex flex-col gap-6">
+                  <div className="bg-[#FFF8F3] p-10 rounded-[2rem] border border-orange-100 shadow-sm text-gray-800 relative overflow-hidden">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-orange-500 text-lg">✨</span>
+                      <h2 className="text-xl font-bold text-gray-800">Rewards</h2>
+                    </div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-orange-400/80">Loyalty Points</p>
+                    <div className="my-6 flex items-baseline gap-2">
+                      <span className={`text-6xl font-black transition-colors duration-500 ${currentPoints >= 1000 ? 'text-yellow-500' : 'text-orange-600'}`}>
+                        {currentPoints}
+                      </span>
+                      <span className="text-lg font-bold text-orange-400">PTS</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-[10px] font-bold text-gray-400">
+                        <span>{currentPoints >= 1000 ? "🏆 DISCOUNT UNLOCKED" : "Progress to 50% Off"}</span>
+                        <span className="text-orange-500">{currentPoints} / 1000</span>
                       </div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400/80">Loyalty Points</p>
+                      
+                      <div className="w-full bg-orange-100/50 h-3 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-1000 ${currentPoints >= 1000 ? 'bg-yellow-400 shadow-[0_0_15px_#facc15]' : 'bg-orange-500'}`} 
+                          style={{ width: `${Math.min((currentPoints / 1000) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+
+                      {currentPoints >= 1000 && !voucherCode && (
+                        <button 
+                          className="w-full mt-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg hover:scale-[1.02] transition-transform animate-pulse"
+                          onClick={handleClaimFreeMeal}
+                        >
+                          🎁 Claim 50% Off Meal
+                        </button>
+                      )}
+
+                      {voucherCode && (
+                        <div className="mt-4 p-4 bg-white border-2 border-dashed border-yellow-500 rounded-2xl text-center shadow-inner animate-in zoom-in duration-300">
+                           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Apply Voucher</p>
+                           <p className="text-xl font-black text-orange-600 tracking-widest mt-1">{voucherCode}</p>
+                        </div>
+                      )}
                     </div>
-                    <button onClick={toggleHistory} className="bg-white/80 backdrop-blur-sm p-2 rounded-lg border border-orange-100 hover:bg-orange-500 hover:text-white transition-all duration-300 shadow-sm">
-                      📜
-                    </button>
                   </div>
-                  <div className="my-6 flex items-baseline gap-2">
-                    <span className="text-6xl font-black text-orange-600">{currentPoints}</span>
-                    <span className="text-lg font-bold text-orange-400">PTS</span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                      <span>Progress to Gold</span>
-                      <span className="text-orange-500">{currentPoints} / {nextMilestone}</span>
+
+                  {/* Recent Points History */}
+                  <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm flex-grow">
+                    <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Recent Points</h3>
+                      <button onClick={toggleHistory} className="text-[10px] font-bold text-orange-500 hover:underline">View All</button>
                     </div>
-                    <div className="w-full bg-orange-100/50 h-3 rounded-full overflow-hidden border border-orange-50">
-                      <div className="bg-orange-500 h-full transition-all duration-1000" style={{ width: `${progressWidth}%` }}></div>
+                    <div className="space-y-4">
+                      {pointsHistory.length > 0 ? pointsHistory.slice(0, 5).map((item, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 border-b border-gray-50 last:border-0">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-extrabold text-gray-700">{item.description || "Food Order"}</span>
+                            <span className="text-[10px] text-gray-400 font-bold">{item.date ? new Date(item.date).toLocaleDateString() : 'Recent'}</span>
+                          </div>
+                          <span className={`text-sm font-black ${(item.points || item.pts) > 0 ? 'text-green-500' : 'text-red-400'}`}>
+                            {(item.points || item.pts) > 0 ? '+' : ''}{item.points || item.pts || 0}
+                          </span>
+                        </div>
+                      )) : <p className="text-center text-gray-400 text-xs py-4 font-bold">No points activity yet</p>}
                     </div>
                   </div>
                 </div>
 
+                {/* University Card */}
                 <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm h-full">
                   <h2 className="text-xl font-bold text-gray-800 mb-10 tracking-tight">University Info</h2>
                   <div className="space-y-8">
@@ -286,6 +332,7 @@ const ProfilePage = () => {
                 </div>
               </div>
 
+              {/* Dietary Preferences Card */}
               <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm">
                  <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                    <span className="text-orange-500">🍃</span> Dietary Preferences
@@ -303,10 +350,11 @@ const ProfilePage = () => {
                  </div>
               </div>
 
+              {/* Full History Table */}
               {showHistory && (
                 <div ref={historyRef} className="bg-white p-10 rounded-[2rem] border border-orange-100 shadow-md animate-in fade-in slide-in-from-bottom-5 duration-500">
                    <div className="flex justify-between items-center mb-8">
-                     <h2 className="text-xl font-bold text-gray-800 tracking-tight">Recent Activity</h2>
+                     <h2 className="text-xl font-bold text-gray-800 tracking-tight">Full Point Activity</h2>
                      <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-orange-500 font-bold text-sm transition">Close ×</button>
                    </div>
                    <div className="overflow-x-auto">
@@ -319,12 +367,12 @@ const ProfilePage = () => {
                          </tr>
                        </thead>
                        <tbody className="divide-y divide-gray-50">
-                         {pointsHistory.map((item) => (
-                           <tr key={item.id} className="group hover:bg-orange-50/30 transition-colors">
-                             <td className="py-5 text-sm font-bold text-gray-400">{item.date}</td>
-                             <td className="py-5 text-sm font-extrabold text-gray-700">{item.desc}</td>
-                             <td className={`py-5 text-sm font-black text-right ${item.type === 'earn' ? 'text-green-500' : 'text-red-400'}`}>
-                               {item.pts}
+                         {pointsHistory.map((item, index) => (
+                           <tr key={index} className="group hover:bg-orange-50/30 transition-colors">
+                             <td className="py-5 text-sm font-bold text-gray-400">{item.date ? new Date(item.date).toLocaleDateString() : 'Recent'}</td>
+                             <td className="py-5 text-sm font-extrabold text-gray-700">{item.description || item.desc}</td>
+                             <td className={`py-5 text-sm font-black text-right ${(item.points || item.pts) > 0 ? 'text-green-500' : 'text-red-400'}`}>
+                               {(item.points || item.pts) > 0 ? '+' : ''}{item.points || item.pts || 0}
                              </td>
                            </tr>
                          ))}
@@ -342,11 +390,10 @@ const ProfilePage = () => {
   );
 };
 
+// Helper Components
 const DisplayItem = ({ icon, label, value, iconBg, iconColor }) => (
   <div className="flex items-center gap-6">
-    <div className={`w-14 h-14 ${iconBg} ${iconColor} rounded-2xl flex items-center justify-center text-2xl shadow-sm`}>
-      {icon}
-    </div>
+    <div className={`w-14 h-14 ${iconBg} ${iconColor} rounded-2xl flex items-center justify-center text-2xl shadow-sm`}>{icon}</div>
     <div>
       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
       <p className="text-gray-800 font-extrabold text-lg leading-tight">{value}</p>
@@ -360,9 +407,7 @@ const EditInput = ({ label, value, name, onChange, disabled, className }) => (
     <input 
       type="text" name={name} value={value || ""} onChange={onChange} disabled={disabled}
       className={`w-full p-4 rounded-2xl border transition duration-200 text-lg font-bold ${
-        disabled 
-          ? 'bg-gray-50 border-gray-50 text-gray-400 cursor-not-allowed' 
-          : 'bg-white border-gray-200 text-gray-800 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5'
+        disabled ? 'bg-gray-50 border-gray-50 text-gray-400 cursor-not-allowed' : 'bg-white border-gray-200 text-gray-800 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/5'
       }`}
     />
   </div>
