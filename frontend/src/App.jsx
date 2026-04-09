@@ -150,7 +150,6 @@ function App() {
       <Route path="/rate-us" element={<div className="text-center p-10 font-bold">Reviews Page Coming Soon</div>} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<Privacypage />} />
-      <Route path="*" element={<HomePage user={user} onLogout={handleLogout} />} />
     </Routes>
   );
 }

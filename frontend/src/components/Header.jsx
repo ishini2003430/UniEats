@@ -1,11 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-<<<<<<< HEAD
 import { motion } from 'framer-motion';
-import { Bell, ShoppingCart, LogOut, User, Star, Package, Heart, ChevronDown } from 'lucide-react';
-=======
-import { Bell, ShoppingCart, LogOut, User, Star, Package, Heart, Gift, Zap } from 'lucide-react';
->>>>>>> 062e637f7e291758f6db14ecc53ead212d812813
+import { Bell, ShoppingCart, LogOut, User, Star, Package, Heart, ChevronDown, Gift, Zap } from 'lucide-react';
 
 export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
   const navigate = useNavigate();
@@ -93,27 +89,6 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
         <div className="flex items-center gap-4">
           
           <div className="flex items-center border-r border-slate-200 pr-4 gap-2">
-<<<<<<< HEAD
-            <button className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
-            </button>
-
-            <button
-              onClick={() => navigate("/student/order")}
-              className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all group"
-            >
-              <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              {cartItemCount > 0 && (
-                <motion.span 
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white shadow-sm"
-                >
-                  {cartItemCount}
-                </motion.span>
-              )}
-=======
             {/* Notification Bell with Dropdown */}
             <div className="relative" ref={notifyRef}>
               <button 
@@ -122,7 +97,7 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
               >
                 <Bell className="w-5 h-5" />
                 {notifications.length > 0 && (
-                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-orange-500 rounded-full border-2 border-white animate-pulse"></span>
+                  <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white animate-pulse"></span>
                 )}
               </button>
 
@@ -150,9 +125,20 @@ export default function Header({ profile, user, onLogout, cartItemCount = 0 }) {
               )}
             </div>
 
-            <button onClick={() => navigate("/student/order")} className="p-2.5 rounded-full text-slate-500 hover:bg-slate-100 transition-all">
-              <ShoppingCart className="w-5 h-5" />
->>>>>>> 062e637f7e291758f6db14ecc53ead212d812813
+            <button
+              onClick={() => navigate("/student/order")}
+              className="relative p-2.5 rounded-full text-slate-600 hover:bg-orange-100 transition-all group"
+            >
+              <ShoppingCart className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              {cartItemCount > 0 && (
+                <motion.span 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-rose-500 text-white text-[10px] font-black rounded-full border-2 border-white shadow-sm"
+                >
+                  {cartItemCount}
+                </motion.span>
+              )}
             </button>
           </div>
 
