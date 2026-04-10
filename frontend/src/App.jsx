@@ -21,9 +21,10 @@ import VendorList from "./pages/student/VendorList";
 import VendorMenu from "./pages/student/VendorMenu";
 import MyFavorites from "./pages/student/MyFavorites";
 import HomePage from "./pages/student/HomePage";
+import VendorReviews from "./pages/vendor/VendorReviews";
 
 
-import FoodManagement from "./pages/vendor/FoodManagement";
+
 
 
 // (duplicates removed) ReviewsPage and StudentProfile already imported above
@@ -198,7 +199,13 @@ function App() {
                 <VendorDashboard user={user} onLogout={handleLogout} />
               }
             />
-
+             
+<Route
+              path="/review"
+              element={
+                <VendorReviews user={user} onLogout={handleLogout} />
+              }
+            />
             <Route
               path="*"
               element={
@@ -303,7 +310,7 @@ function App() {
       <Route path="/" element={<Login onLogin={handleLogin} />} />
       <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
-
+      <Route path="/review" element={<VendorReviews />} />
       <Route
         path="/admin/login"
         element={<AdminLogin onLogin={handleLogin} />}

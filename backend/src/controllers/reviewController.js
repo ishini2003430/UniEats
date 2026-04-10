@@ -14,7 +14,11 @@ exports.addReview = async (req, res) => {
 // Read - Get all reviews for a specific vendor
 exports.getVendorReviews = async (req, res) => {
   try {
-    const reviews = await Review.find({ vendorId: req.params.vendorId }).sort({ date: -1 });
+    const { vendorId } = req.params;
+    
+    // This finds the reviews where vendorId matches the string ID passed from frontend
+    const reviews = await Review.find({ vendorId: vendorId }).sort({ createdAt: -1 });
+    
     res.json(reviews);
   } catch (err) {
     res.status(500).json({ message: err.message });

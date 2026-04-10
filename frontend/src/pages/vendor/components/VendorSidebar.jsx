@@ -110,6 +110,37 @@ export default function VendorSidebar({
           <span>Menu</span>
         </button>
 
+<button
+  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group relative ${
+    activeTab === "reviews"
+      ? "bg-slate-800 text-white font-medium"
+      : "hover:bg-slate-800/50 hover:text-white"
+  }`}
+  onClick={() => {
+    navigate("/review"); // ✅ route for reviews page
+    if (window.innerWidth < 1024) setIsSidebarOpen(false);
+  }}
+>
+  {activeTab === "reviews" && (
+    <motion.div
+      layoutId="vendorActiveNav"
+      className="absolute left-0 w-1 h-6 bg-amber-500 rounded-r-full"
+    />
+  )}
+
+  {/* Optional: change icon to Star */}
+  <ClipboardList
+    className={`w-5 h-5 ${
+      activeTab === "reviews"
+        ? "text-amber-500"
+        : "text-slate-400 group-hover:text-amber-500/80"
+    }`}
+  />
+
+  <span>Reviews</span>
+</button>
+
+
         <button
           className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all group relative ${
             activeTab === "orders"

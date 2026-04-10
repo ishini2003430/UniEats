@@ -26,10 +26,11 @@ const ReviewsPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [isAutoFilled, setIsAutoFilled] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem('user')) || { 
-    name: "Alex Johnson", 
-    email: "student@sliit.lk" 
-  };
+  /* ---------------- USER SESSION LOGIC ---------------- */
+  // Matching the logic used in your ProfilePage to find the correct login email
+  const rawUser = sessionStorage.getItem('unieatsUser') || localStorage.getItem('unieatsUser') || localStorage.getItem('user');
+  const user = rawUser ? JSON.parse(rawUser) : null;
+  const userEmail = user?.email || "Guest";
 
   const ratingLabels = { 1: 'Poor', 2: 'Fair', 3: 'Good', 4: 'Very Good', 5: 'Great' };
 
@@ -37,11 +38,7 @@ const ReviewsPage = () => {
   useEffect(() => {
     if (location.state?.orderData) {
       const order = location.state.orderData;
-      
-      // Extract all meal names from the order items array
       const mealNames = order.items?.map(item => item.name).join(", ") || "";
-      
-      // Handle vendorId whether it's an object (populated) or just a string
       const vId = order.vendorId?._id || order.vendorId;
       const vName = order.vendorId?.vendorName || order.vendorName || "Selected Vendor";
 
@@ -57,14 +54,16 @@ const ReviewsPage = () => {
   }, [location.state]);
 
   useEffect(() => {
-    fetchProfile();
+    if (userEmail !== "Guest") {
+      fetchProfile();
+    }
     fetchVendors();
     fetchReviews();
-  }, [activeTab]);
+  }, [activeTab, userEmail]);
 
   const fetchProfile = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/profile/fetch/${user.email}`);
+      const response = await axios.get(`http://localhost:5000/api/profile/fetch/${userEmail}`);
       setProfile(response.data);
     } catch (err) {
       setProfile(user);
@@ -93,7 +92,7 @@ const ReviewsPage = () => {
       setLoading(true);
       const url = activeTab === 'all' 
         ? 'http://localhost:5000/api/reviews/all' 
-        : `http://localhost:5000/api/reviews/user/${user.email}`;
+        : `http://localhost:5000/api/reviews/user/${userEmail}`;
       const response = await axios.get(url);
       setReviews(response.data);
     } catch (err) {
@@ -104,7 +103,8 @@ const ReviewsPage = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('unieatsUser');
+    localStorage.removeItem('unieatsUser');
     localStorage.removeItem('user');
     window.location.href = '/login';
   };
@@ -116,7 +116,7 @@ const ReviewsPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    if (userEmail === "Guest") return alert("Please log in to post a review.");
     if (!formData.vendorId) return alert("Please select a vendor.");
     if (formData.mealName.trim().length < 3) return alert("Enter a valid meal name.");
     if (rating === 0) return alert("Please select a star rating.");
@@ -125,8 +125,8 @@ const ReviewsPage = () => {
     const reviewData = { 
       ...formData, 
       rating, 
-      userEmail: user.email, 
-      userName: profile?.name || user.name, 
+      userEmail: userEmail, 
+      userName: profile?.name || user?.name || "Anonymous", 
       date: new Date().toISOString() 
     };
 
@@ -197,6 +197,14 @@ const ReviewsPage = () => {
       <Header profile={profile} onLogout={handleLogout} />
 
       <div className="max-w-4xl mx-auto pt-12 px-6 text-center">
+        {/* LOGGED IN EMAIL DISPLAY */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-50 border border-orange-100 mb-6">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-orange-700">
+            Authenticated: <span className="text-gray-600 lowercase font-bold">{userEmail}</span>
+          </span>
+        </div>
+
         <h1 className="text-3xl font-extrabold flex items-center justify-center gap-3">
           <span className="text-orange-500 text-2xl">☆</span> Rate Meals & Vendors
         </h1>
@@ -225,7 +233,7 @@ const ReviewsPage = () => {
         </div>
 
         {/* Input Form */}
-        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mb-10 ring-2 ring-orange-50">
+        <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mb-10 ring-2 ring-orange-50/50">
           <div className="flex justify-between items-center mb-8">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <span className="text-orange-500">☆</span> {editingId ? "Update Your Review" : isAutoFilled ? "Rating Your Recent Order" : "Rate a Meal"}
@@ -346,7 +354,7 @@ const ReviewsPage = () => {
                     </div>
                     <p className="text-gray-600 text-xs font-medium leading-relaxed">{review.comment}</p>
                   </div>
-                  {user.email === review.userEmail && (
+                  {userEmail === review.userEmail && (
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => handleEdit(review)} className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition">✏️</button>
                         <button onClick={() => handleDelete(review._id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">🗑️</button>
