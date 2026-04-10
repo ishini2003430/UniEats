@@ -18,6 +18,7 @@ import StudentProfile from "./pages/StudentProfile";
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
 import Privacypage from "./pages/student/Privacypage";
+import OffersPage from "./pages/student/OffersPage";
 
 
 
@@ -124,6 +125,11 @@ function App() {
             <Route
               path="/my-orders"
               element={<MyOrdersPage user={user} />}
+            />
+
+            <Route
+              path="/offers"
+              element={<OffersPage user={user} onLogout={handleLogout} />}
             />
             {/* fallback */}
             <Route

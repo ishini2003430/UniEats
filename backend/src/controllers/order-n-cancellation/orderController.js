@@ -457,6 +457,13 @@ exports.createOrder = async (req, res) => {
       normalizedSelections.push({ vendorId, slotId, foodItemIds });
     });
 
+    const foodQuantities = {};
+    normalizedSelections.forEach(sel => {
+      sel.foodItemIds.forEach(id => {
+        foodQuantities[id] = (foodQuantities[id] || 0) + 1;
+      });
+    });
+
     const allFoodIds = [...new Set(normalizedSelections.flatMap((item) => item.foodItemIds))];
     const foods = await Food.find({ _id: { $in: allFoodIds }, isAvailable: true });
     if (foods.length !== allFoodIds.length) {
@@ -528,6 +535,17 @@ exports.createOrder = async (req, res) => {
         }
       }
 
+      for (const [foodId, quantityCount] of Object.entries(foodQuantities)) {
+        const update = await Food.updateOne(
+          { _id: foodId, quantity: { $gte: quantityCount } },
+          { $inc: { quantity: -quantityCount } },
+          { session }
+        );
+        if (!update.modifiedCount) {
+          throw new Error("INSUFFICIENT_STOCK");
+        }
+      }
+
       await Order.create(
         [
           {
@@ -559,6 +577,9 @@ exports.createOrder = async (req, res) => {
       order: toClientOrder(created, "student", studentId),
     });
   } catch (error) {
+    if (error && error.message === "INSUFFICIENT_STOCK") {
+      return res.status(409).json({ message: "One or more food items have insufficient stock" });
+    }
     if (error && error.message === "SLOT_CAPACITY_REACHED") {
       return res.status(409).json({ message: "Slot is full or no longer available" });
     }
