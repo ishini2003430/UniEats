@@ -32,3 +32,5 @@ export const disconnectRealtime = () => {
   socket.disconnect();
   socket = null;
 };
+
+export const getSocket = () => socket;

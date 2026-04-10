@@ -22,6 +22,7 @@ function Sidebar({ currentView, setView, isOpen, setIsOpen, onLogout, user }) {
 
   const navItems = [
     { id: "home", label: "Dashboard", icon: LayoutDashboard },
+    { id: "orders", label: "Orders", icon: Clock },
     { id: "vendors", label: "Pending Vendors", icon: Clock },
     { id: "activeVendors", label: "Active Vendors", icon: Store },
     { id: "students", label: "Students", icon: GraduationCap },

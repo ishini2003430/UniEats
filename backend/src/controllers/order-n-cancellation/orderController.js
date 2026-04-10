@@ -315,6 +315,13 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         })
       );
     });
+    const summaryLines = vendorContexts.map((ctx, index) => {
+      const vendorUser = vendorUserMap.get(String(ctx.vendorId));
+      const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
+      const slotLabel = formatSlotLabel(ctx.slot);
+      const foodNames = ctx.foods.map((item) => item.name).join(", ");
+      return `${index + 1}. Vendor: ${vendorLabel} | Slot: ${slotLabel} | Items: ${foodNames}`;
+    });
 
     const studentNotification = {
       recipientRole: "student",
@@ -324,7 +331,7 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
       orderId: order._id,
       type: "ORDER_PLACED",
       title: "Order placed successfully",
-      message: `Order ${order.orderId} was placed for ${vendorContexts.length} vendor(s).`,
+      message: `Order ${order.orderId} placed:\n${summaryLines.join("\\n")}`,
     };
 
     const createdNotifications = await Notification.insertMany([...vendorNotificationDocs, studentNotification]);
@@ -350,22 +357,13 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         },
       });
     });
-
-    const summaryLines = vendorContexts.map((ctx, index) => {
-      const vendorUser = vendorUserMap.get(String(ctx.vendorId));
-      const vendorLabel = vendorUser?.vendorName || vendorUser?.name || "Vendor";
-      const slotLabel = formatSlotLabel(ctx.slot);
-      const foodNames = ctx.foods.map((item) => item.name).join(", ");
-      return `${index + 1}. Vendor: ${vendorLabel} | Slot: ${slotLabel} | Items: ${foodNames}`;
-    });
-
     const studentEmail = buildStudentOrderConfirmationEmail({
       studentLabel,
       orderId: order.orderId,
       summaryLines,
     });
 
-    await Promise.allSettled([
+    const results = await Promise.allSettled([
       ...vendorEmailJobs,
       sendEmail({
         to: studentUser?.email,
@@ -374,6 +372,22 @@ const sendOrderCreatedNotifications = async ({ order, studentId, vendorContexts 
         html: studentEmail.html,
       }),
     ]);
+
+    // Log email send results for debugging (useful when SMTP isn't configured)
+    results.forEach((r, idx) => {
+      if (r.status === "rejected") {
+        console.error(`email job ${idx} failed:`, r.reason || r);
+      } else if (r.status === "fulfilled") {
+        const val = r.value;
+        if (val && val.skipped) {
+          console.warn(`email job ${idx} skipped:`, val.reason);
+        } else if (val && val.preview) {
+          console.info(`email job ${idx} preview URL:`, val.preview);
+        } else {
+          console.info(`email job ${idx} sent`);
+        }
+      }
+    });
   } catch (notifyError) {
     console.error("sendOrderCreatedNotifications error:", notifyError);
   }

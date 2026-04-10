@@ -48,7 +48,7 @@ function Login({ onLogin }) {
       }
 
       // SAVE USER
-      localStorage.setItem("user", JSON.stringify(res.data));
+      localStorage.setItem("unieatsUser", JSON.stringify(res.data));
       onLogin?.(res.data);
 
       // REDIRECT (cleaned - no duplicates)

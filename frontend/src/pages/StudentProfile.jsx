@@ -21,7 +21,9 @@ const ProfilePage = () => {
   const dietaryOptions = ['Vegetarian', 'Vegan', 'Halal', 'Gluten-Free', 'Kosher', 'Dairy-Free'];
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
+    // Support both session-based per-tab sessions and legacy localStorage `user` key
+    const raw = sessionStorage.getItem('unieatsUser') || localStorage.getItem('unieatsUser') || localStorage.getItem('user');
+    const user = raw ? JSON.parse(raw) : null;
     const email = user?.email;
 
     if (!email) {
@@ -136,7 +138,9 @@ const ProfilePage = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    try { sessionStorage.removeItem('unieatsUser'); } catch(e) {}
+    try { localStorage.removeItem('unieatsUser'); } catch(e) {}
+    try { localStorage.removeItem('user'); } catch(e) {}
     window.location.href = "/login";
   };
 
