@@ -31,6 +31,7 @@ import FoodManagement from "./pages/vendor/FoodManagement";
 import HelpCenter from "./pages/student/Helpcenter";
 import TermsPage from "./pages/student/TermsPage";
 import Privacypage from "./pages/student/Privacypage";
+import OffersPage from "./pages/student/OffersPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -255,6 +256,10 @@ function App() {
               element={<MyOrdersPage user={user} />}
             />
 
+            <Route
+              path="/offers"
+              element={<OffersPage user={user} onLogout={handleLogout} />}
+            />
 
             {/* Favorites */}
             <Route
@@ -282,8 +287,6 @@ function App() {
             <Route path="/helpcenter" element={<HelpCenter />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<Privacypage />} />
-
-            {/* Fallback */}
 
             {/* fallback */}
 
