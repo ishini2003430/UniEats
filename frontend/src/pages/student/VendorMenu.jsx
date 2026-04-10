@@ -1,13 +1,92 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Loader2, Store, ShoppingCart, Plus, Check, Heart, Flame, MessageCircle, X, Send, Sparkles, Bot, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Store, ShoppingCart, Plus, Check, Heart, Flame, MessageCircle, X, Send, Sparkles, Bot, Clock, Star, MapPin } from 'lucide-react';
 import heroImage from '../../assets/image1.jpg';
 import api from '../../services/api';
 import Header from '../../components/Header';
 import Footer from '../../components/Footer';
+import SmartAssistant from '../../components/SmartAssistant';
 
 // Promo section relocated to dynamic combo engine
+
+const DEFAULT_COMBO_DURATION_MS = 2 * 60 * 60 * 1000;
+const URGENCY_ORANGE_MS = 15 * 60 * 1000;
+const URGENCY_PULSE_MS = 5 * 60 * 1000;
+
+const hashToInt = (text) => {
+  const s = String(text || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return h;
+};
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+const toComboCategory = (rawCategory) => {
+  const v = String(rawCategory || "").toLowerCase();
+  if (v === "meal" || v === "meals" || v.includes("meal") || v.includes("main")) return "Meal";
+  if (v === "drink" || v === "drinks" || v.includes("drink") || v.includes("beverage")) return "Drink";
+  if (v === "dessert" || v === "desserts" || v.includes("dessert")) return "Dessert";
+  return null;
+};
+
+const formatHhMmSs = (ms) => {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, "0")} : ${String(m).padStart(2, "0")} : ${String(s).padStart(2, "0")}`;
+};
+
+const getPromoType = (index) => {
+  const types = ['Flash Deal', 'Lunch Promo', 'Daily Combo', 'Stock-based promo'];
+  return types[index % types.length];
+};
+
+const getOrCreatePromoWindow = ({ vendorId, comboId, promoType }) => {
+  const key = `unieats:comboPromo:${vendorId}:${comboId}:${promoType}`;
+  const now = Date.now();
+  const raw = localStorage.getItem(key);
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.promoEndTime > now || promoType === 'Stock-based promo') {
+        return parsed;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const promoStartTime = now;
+  let promoEndTime = now;
+
+  const date = new Date(now);
+  
+  if (promoType === 'Flash Deal') {
+    promoEndTime = now + (45 * 60 * 1000); // 45 mins Fast urgency
+  } else if (promoType === 'Lunch Promo') {
+    date.setHours(14, 0, 0, 0); // 2:00 PM
+    if (now > date.getTime()) {
+       date.setDate(date.getDate() + 1); // Bump to tomorrow if past 2PM today
+    }
+    promoEndTime = date.getTime();
+  } else if (promoType === 'Daily Combo') {
+    date.setHours(23, 59, 59, 999); // Midnight end
+    promoEndTime = date.getTime();
+  } else if (promoType === 'Stock-based promo') {
+    promoEndTime = Number.POSITIVE_INFINITY;
+  } else {
+    promoEndTime = now + (2 * 60 * 60 * 1000); // Fallback: 2 Hours
+  }
+
+  const result = { promoStartTime, promoEndTime, promoType };
+  localStorage.setItem(key, JSON.stringify(result));
+  return result;
+};
 
 export default function VendorMenu({ user, onLogout }) {
   const { vendorId } = useParams();
@@ -24,6 +103,13 @@ export default function VendorMenu({ user, onLogout }) {
   // --- Real-Time Countdown State ---
   const [now, setNow] = useState(Date.now());
 
+  // --- Modal State ---
+  const [showPromoModal, setShowPromoModal] = useState(true);
+
+  // --- Trending carousel auto-scroll ---
+  const trendingScrollRef = useRef(null);
+  const [trendingIndex, setTrendingIndex] = useState(0);
+
   useEffect(() => {
     const interval = setInterval(() => {
       setNow(Date.now());
@@ -31,107 +117,159 @@ export default function VendorMenu({ user, onLogout }) {
     return () => clearInterval(interval);
   }, []);
 
-  // --- AI Chat State ---
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([
-    { text: "Hi! I'm your smart assistant. Ask me about 'cheap' foods, 'popular' items, 'drinks', or our 'combo' deals!", sender: 'ai' }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const chatEndRef = useRef(null);
+  // --- Trending Items Logic ---
+  const trendingItems = useMemo(() => {
+    const nowTs = Date.now();
+    const dayBucket = Math.floor(nowTs / (24 * 60 * 60 * 1000));
+
+    return [...menuItems]
+      .map((item) => {
+        const base = hashToInt(item?._id || item?.name || "");
+        const orderCount = (base % 180) + 1; // 1..180 (fake backend field)
+        const favoriteCount = (Math.floor(base / 7) % 120) + 1; // 1..120 (fake backend field)
+        const recentSeed = hashToInt(`${item?._id || item?.name}-${dayBucket}`);
+        const recentOrders = recentSeed % 60; // 0..59 (last 24h simulation)
+        const recencyBoost = clamp(recentOrders * 1.7, 0, 100);
+
+        const popularityScore = (orderCount * 0.6) + (favoriteCount * 0.3) + (recencyBoost * 0.1);
+
+        let badge = "👍 Popular";
+        let badgeColor = "from-slate-800 to-slate-900";
+        if (popularityScore > 80) {
+          badge = "🔥 Hot";
+          badgeColor = "from-rose-500 to-red-600";
+        } else if (popularityScore > 50) {
+          badge = "⭐ Trending";
+          badgeColor = "from-amber-500 to-orange-500";
+        }
+
+        return { ...item, orderCount, favoriteCount, recentOrders, recencyBoost, popularityScore, badge, badgeColor };
+      })
+      .sort((a, b) => (b.popularityScore || 0) - (a.popularityScore || 0))
+      .slice(0, 5);
+  }, [menuItems]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages, isChatOpen]);
+    if (!trendingItems.length) return;
+    const el = trendingScrollRef.current;
+    if (!el) return;
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if(!chatInput.trim()) return;
-    
-    const userMsg = chatInput.trim().toLowerCase();
-    setChatMessages(prev => [...prev, { text: chatInput, sender: 'user' }]);
-    setChatInput('');
+    const id = setInterval(() => {
+      setTrendingIndex((prev) => (prev + 1) % trendingItems.length);
+    }, 4000);
 
-    let aiResponse = "I'm not sure how to help with that. Try asking for 'cheap', 'drink', 'popular', or 'combo'.";
+    return () => clearInterval(id);
+  }, [trendingItems.length]);
 
-    if (userMsg.includes('cheap')) {
-      const cheapFoods = menuItems.filter(item => Number(item.price) < 500).slice(0, 3);
-      if(cheapFoods.length > 0) {
-        aiResponse = "Here are some affordable options: " + cheapFoods.map(f => f.name).join(', ');
-      } else {
-        aiResponse = "I couldn't find anything extremely cheap right now.";
-      }
-    } else if (userMsg.includes('drink')) {
-      const drinks = menuItems.filter(item => item.category?.toLowerCase().includes('drink') || item.category?.toLowerCase().includes('beverage')).slice(0, 3);
-      if(drinks.length > 0) {
-        aiResponse = "Hydrate with these: " + drinks.map(f => f.name).join(', ');
-      } else {
-        aiResponse = "Looks like we're out of drinks!";
-      }
-    } else if (userMsg.includes('popular')) {
-       const pop = [...menuItems].sort((a,b) => Number(b.price) - Number(a.price)).slice(0, 3);
-       aiResponse = "Our most popular items are: " + pop.map(f => f.name).join(', ');
-    } else if (userMsg.includes('combo')) {
-       aiResponse = "Check out our 🔥 Recommended For You section right above the menu! We found a great match for you.";
-    }
+  useEffect(() => {
+    const el = trendingScrollRef.current;
+    if (!el || !trendingItems.length) return;
 
-    setTimeout(() => {
-      setChatMessages(prev => [...prev, { text: aiResponse, sender: 'ai' }]);
-    }, 500);
-  };
+    const cardWidth = 280; // matches min widths below (approx, includes gap)
+    const targetLeft = trendingIndex * (cardWidth + 16);
+    el.scrollTo({ left: targetLeft, behavior: "smooth" });
+  }, [trendingIndex, trendingItems.length]);
 
   // --- Smart Combos Logic ---
   const recommendedCombos = useMemo(() => {
-    const mains = menuItems.filter(f => f.category?.toLowerCase() === 'main' || f.category?.toLowerCase() === 'rice' || Number(f.price) >= 500);
-    const drinks = menuItems.filter(f => f.category?.toLowerCase().includes('drink') || f.category?.toLowerCase().includes('beverage'));
-    const snacks = menuItems.filter(f => f.category?.toLowerCase().includes('snack') || f.category?.toLowerCase().includes('short'));
+    if (!vendorId) return [];
 
-    const combos = [];
-    let comboItems = [];
+    const grouped = { Meal: [], Drink: [], Dessert: [] };
+    menuItems.forEach((food) => {
+      const kind = toComboCategory(food.category);
+      if (!kind) return;
+      grouped[kind].push(food);
+    });
 
-    // Attempt 1: Strict Categorical Meal
-    if (mains.length > 0 && drinks.length > 0) {
-      comboItems = [mains[0], drinks[0]];
-      if(snacks.length > 0) comboItems.push(snacks[0]);
-    } 
-    // Attempt 2: Universal Fallback (Find 2-3 distinct items)
-    else if (menuItems.length >= 2) {
-      const sortedByPriceDesc = [...menuItems].sort((a,b) => Number(b.price) - Number(a.price));
-      const sortedByPriceAsc = [...menuItems].sort((a,b) => Number(a.price) - Number(b.price));
-      
-      comboItems = [sortedByPriceDesc[0], sortedByPriceDesc[1]];
-      if(menuItems.length >= 3 && sortedByPriceAsc[0]._id !== sortedByPriceDesc[0]._id && sortedByPriceAsc[0]._id !== sortedByPriceDesc[1]._id) {
-         comboItems.push(sortedByPriceAsc[0]);
+    // Show combo only if all 3 categories exist
+    if (!grouped.Meal.length || !grouped.Drink.length || !grouped.Dessert.length) return [];
+
+    const combinations = [];
+    for (const meal of grouped.Meal) {
+      for (const drink of grouped.Drink) {
+        for (const dessert of grouped.Dessert) {
+          const items = [meal, drink, dessert];
+          const totalOriginalPrice = items.reduce(
+            (sum, i) => sum + Number(i.originalPrice || i.price || 0),
+            0
+          );
+          const total = items.reduce((sum, i) => sum + Number(i.price || 0), 0);
+          const comboPrice = total * 0.9;
+          const trendingScore = items.reduce(
+            (sum, i) => sum + Number(i.popularityScore || 0),
+            0
+          );
+          const id = `combo-${String(meal._id)}-${String(drink._id)}-${String(dessert._id)}`;
+
+          const { promoStartTime, promoEndTime } = getOrCreatePromoWindow({ vendorId, comboId: id });
+
+            combinations.push({
+              id,
+              items,
+              originalPrice: totalOriginalPrice,
+              discountedPrice: comboPrice,
+              discountText: "Save 10%",
+              trendingScore,
+            });
+          }
+        }
       }
-    }
-    
-    if (comboItems.length >= 2) {
-      const originalComboPrice = comboItems.reduce((acc, curr) => acc + Number(curr.price), 0);
-      const fakeDiscountPrice = originalComboPrice * 0.9;
+
+    // Pick top 3 cheapest (tie-break by trending)
+    let finalCombos = combinations
+      .sort((a, b) => (a.discountedPrice - b.discountedPrice) || (b.trendingScore - a.trendingScore))
+      .slice(0, 3);
+
+    // Fallback if no combos were found (e.g. strict category rules failed), but we have some food available.
+    // This safely ensures the design is always visible.
+    if (finalCombos.length === 0 && menuItems.length >= 3) {
+      const items = menuItems.slice(0, 3);
+      const totalOriginalPrice = items.reduce((s, i) => s + Number(i.originalPrice || i.price || 0), 0);
+      const comboPrice = items.reduce((s, i) => s + Number(i.price || 0), 0) * 0.9;
       
-      combos.push({
-        id: "combo-1",
-        title: "Vendor Special Bundle",
-        items: comboItems,
-        originalPrice: originalComboPrice,
-        discountedPrice: fakeDiscountPrice,
+      finalCombos.push({
+        id: 'mock-combo-display',
+        items,
+        originalPrice: totalOriginalPrice,
+        discountedPrice: comboPrice,
         discountText: "Save 10%",
-        expiresAt: Date.now() + 5 * 60 * 1000
+        trendingScore: 100,
       });
     }
-    return combos;
-  }, [menuItems]);
+
+    // Apply Real-World Intelligent Promo Distribution
+    return finalCombos.map((combo, index) => {
+      const pType = getPromoType(index);
+      const { promoStartTime, promoEndTime, promoType } = getOrCreatePromoWindow({ 
+          vendorId: vendorId || 'mock', 
+          comboId: combo.id, 
+          promoType: pType 
+      });
+
+      let title = "Campus Special";
+      if (promoType === 'Flash Deal') title = "⚡ Flash Deal";
+      else if (promoType === 'Lunch Promo') title = "🍱 Lunch Promo";
+      else if (promoType === 'Daily Combo') title = "🌙 Daily Combo";
+      else if (promoType === 'Stock-based promo') title = "🔥 Limited Stock";
+
+      return {
+        ...combo,
+        title,
+        promoStartTime,
+        promoEndTime,
+        promoType
+      };
+    });
+  }, [menuItems, vendorId]);
 
   const activeCombos = recommendedCombos.filter(
-    combo => combo.expiresAt > now
+    combo => combo.promoEndTime > now
   );
 
-  const getRemainingTime = (expiresAt) => {
-    const diff = expiresAt - now;
-    if (diff <= 0) return "Expired";
-
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  const getRemainingTime = (promoEndTime) => {
+    if (promoEndTime === Number.POSITIVE_INFINITY) return "Until Sold Out";
+    const diff = promoEndTime - now;
+    return formatHhMmSs(diff);
   };
 
   const categories = ['All', ...Array.from(new Set(
@@ -212,9 +350,6 @@ export default function VendorMenu({ user, onLogout }) {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <Header user={user} onLogout={onLogout} cartItemCount={selectedFoodIds.length} />
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full space-y-8">
-        
         <style>
           {`
           @keyframes pulseCustom {
@@ -222,52 +357,88 @@ export default function VendorMenu({ user, onLogout }) {
             50% { opacity: 0.6; }
             100% { opacity: 1; }
           }
+          @keyframes softBreathingGlow {
+            0% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+            50% { box-shadow: 0 0 35px rgba(245, 158, 11, 0.5); }
+            100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.1); }
+          }
+          .combo-glow {
+            animation: softBreathingGlow 3s infinite ease-in-out;
+          }
           `}
         </style>
 
-        {/* 2. Animated hero banner section at top (rounded container, gradient background) */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative overflow-hidden rounded-3xl border border-amber-300/60 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 shadow-xl shadow-amber-500/10 group"
-        >
-          <motion.div
-            animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
-            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
-            className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.1)_0%,rgba(249,115,22,0.1)_50%,rgba(244,63,94,0.1)_100%)] opacity-60 bg-[length:200%_200%]"
-          />
-          <motion.div
-            animate={{ x: [0, 20, 0], opacity: [0.15, 0.35, 0.15], scale: [1, 1.2, 1] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-amber-400 blur-3xl pointer-events-none"
-          />
-          <div className="relative z-10 p-6 sm:p-8 md:p-9">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="min-w-0">
-                <motion.span 
-                  animate={{ y: [0, -3, 0] }}
-                  transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-gradient-to-r from-amber-200 to-orange-200 text-amber-800 border border-amber-300 shadow-sm"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Featured Vendor
-                </motion.span>
-                <motion.h2 
-                  whileHover={{ scale: 1.02 }}
-                  className="mt-3 text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 tracking-tight leading-tight truncate"
-                >
-                  {vendorDetails?.vendorName || vendorDetails?.name || 'Vendor Details'}
-                </motion.h2>
-                <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-2xl leading-relaxed font-medium">
-                  Freshly prepared campus favorites with quick pickup and reliable service.
+      {/* FULL WIDTH HERO BANNER */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-orange-400 via-amber-300 to-orange-100 shadow-sm min-h-[320px] flex items-end drop-shadow-sm mb-6">
+        <motion.div
+          animate={{ backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'] }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+          className="absolute inset-0 bg-[linear-gradient(45deg,rgba(251,191,36,0.15)_0%,rgba(249,115,22,0.15)_50%,rgba(255,255,255,0.3)_100%)] bg-[length:200%_200%]"
+        />
+        {/* Right side illustration / blur */}
+        <div className="absolute right-0 top-0 w-1/2 h-full hidden md:block">
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10 z-10 mix-blend-overlay" />
+          <motion.div 
+             animate={{ scale: [1, 1.05, 1], rotate: [0, 1, -1, 0] }}
+             transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+             className="h-full w-full opacity-70 mix-blend-multiply origin-right filter blur-[1px]"
+          >
+             <img src={heroImage} className="w-full h-full object-cover rounded-l-[100px]" alt="Background" />
+          </motion.div>
+          <motion.div 
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-10 right-10 z-20 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-xl border border-white flex items-center gap-2"
+          >
+            <span className="text-xl">🔥</span>
+            <span className="font-bold text-slate-800">Campus Favorite</span>
+          </motion.div>
+        </div>
+
+        {/* Constrained Inner container so text aligns with the rest of the page */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full relative z-10">
+          <div className="p-6 sm:p-10 w-full bg-gradient-to-t from-white/90 via-white/80 to-white/40 backdrop-blur-[2px] mt-12 mb-4 rounded-t-[24px]">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-6">
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: -2 }}
+                className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-full shadow-2xl p-2 z-20 shrink-0 border border-slate-100"
+              >
+                <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                  <Store className="w-10 h-10 text-orange-400" />
+                </div>
+              </motion.div>
+              
+              <div className="flex-1 pb-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <motion.span 
+                    animate={{ scale: [1, 1.03, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="px-3 py-1 bg-emerald-500/10 text-emerald-700 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-1.5 backdrop-blur-md border border-emerald-500/20"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Open Now
+                  </motion.span>
+                  <span className="flex items-center gap-1 text-sm font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg backdrop-blur-md border border-amber-200/50">
+                    <Star className="w-4 h-4 fill-amber-500" />
+                    4.8 (120+)
+                  </span>
+                </div>
+                
+                <h1 className="text-4xl sm:text-5xl font-black text-slate-900 tracking-tight mb-2 relative inline-block">
+                  <span className="relative z-10">{vendorDetails?.vendorName || vendorDetails?.name || 'Premium Vendor'}</span>
+                </h1>
+                
+                <p className="text-slate-700 font-medium flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-slate-500" /> Fast campus pickup • Top Rated
                 </p>
               </div>
             </div>
           </div>
-        </motion.section>
+        </div>
+      </section>
 
-        {/* Dynamic promos now rendered via Smart Combo section below loading spinner */}
+      {/* Main Content Area */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex-grow w-full space-y-8 pb-10">
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-3">
@@ -280,9 +451,50 @@ export default function VendorMenu({ user, onLogout }) {
           </div>
         ) : (
           <>
+            {/* 🔥 Trending Popular Items Carousel */}
+            {trendingItems.length > 0 && (
+              <section className="mb-8">
+                <div className="flex items-center gap-2 mb-4">
+                  <Flame className="w-6 h-6 text-rose-500" />
+                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Trending Now</h3>
+                </div>
+                <div ref={trendingScrollRef} className="flex gap-4 overflow-x-auto pb-6 pt-2 custom-scrollbar snap-x px-1 scroll-smooth">
+                  {trendingItems.map((item, i) => (
+                    <motion.div 
+                      key={item._id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      whileHover={{ scale: 1.03, y: -4 }}
+                      className="snap-start min-w-[240px] md:min-w-[280px] bg-white rounded-2xl border border-slate-100 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col group cursor-pointer"
+                      onClick={() => { if(isItemAvailable(item) && !selectedFoodIds.includes(String(item._id))) toggleCartItem(item) }}
+                    >
+                      <div className="h-32 bg-slate-100 overflow-hidden relative">
+                        {item.image || heroImage ? (
+                          <img src={item.image || heroImage} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={item.name} />
+                        ) : null}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-full bg-gradient-to-r ${item.badgeColor} text-white text-[10px] uppercase font-black tracking-widest shadow-lg shadow-black/20`}>
+                          {item.badge}
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h4 className="font-bold text-slate-900 line-clamp-1 group-hover:text-amber-600 transition-colors">{item.name}</h4>
+                        <div className="mt-auto pt-3 flex justify-between items-center">
+                          <span className="font-black text-slate-900">Rs. {Number(item.price).toFixed(2)}</span>
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                            <Plus className="w-4 h-4" />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </section>
+            )}
             {/* 🔥 Smart Combos Section */}
             {activeCombos.length > 0 && (
-              <section className="mb-8 border-b border-slate-200/50 pb-8">
+              <section id="recommended-combos" className="mb-8 border-b border-slate-200/50 pb-8">
                 <div className="flex items-center gap-2 mb-6">
                   <Flame className="w-7 h-7 text-orange-500" />
                   <h3 className="text-2xl font-extrabold text-slate-900 tracking-tight">Recommended For You</h3>
@@ -293,7 +505,7 @@ export default function VendorMenu({ user, onLogout }) {
                       key={combo.id}
                       whileHover={{ y: -8, scale: 1.02 }}
                       transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                      className="bg-white/90 backdrop-blur-md rounded-[2rem] border-2 border-amber-300 shadow-xl shadow-amber-500/10 overflow-hidden flex flex-col p-5 group relative"
+                      className="bg-white/90 backdrop-blur-md rounded-[2rem] border-2 border-amber-300 shadow-xl shadow-amber-500/20 overflow-hidden flex flex-col p-5 group relative combo-glow"
                     >
                       <motion.div 
                         animate={{ rotate: [0, 15, -5, 0] }}
@@ -311,15 +523,24 @@ export default function VendorMenu({ user, onLogout }) {
                           <span className="px-2 py-1 rounded-lg bg-rose-500 text-white text-[10px] font-bold uppercase shadow-sm">
                             {combo.discountText}
                           </span>
-                          <div 
-                            className="combo-timer text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 whitespace-nowrap" 
-                            style={{ animation: 'pulseCustom 1.5s infinite' }}
+                          <div
+                            className={`combo-timer text-[11px] font-bold px-2 py-1 rounded border whitespace-nowrap ${
+                              combo.promoEndTime === Number.POSITIVE_INFINITY 
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                                : (combo.promoEndTime - now) <= URGENCY_PULSE_MS
+                                  ? 'bg-orange-50 border-orange-200 text-orange-600 animate-pulse'
+                                  : (combo.promoEndTime - now) <= URGENCY_ORANGE_MS
+                                    ? 'bg-orange-50 border-orange-200 text-orange-600'
+                                    : 'bg-rose-50 border-rose-200 text-rose-600'
+                            }`}
                           >
-                            ⏱ Ends in: {getRemainingTime(combo.expiresAt)}
+                            {combo.promoEndTime === Number.POSITIVE_INFINITY 
+                              ? getRemainingTime(combo.promoEndTime) 
+                              : `Ends in: ${getRemainingTime(combo.promoEndTime)}`}
                           </div>
-                          {combo.expiresAt - now < 60000 && (
-                            <div className="last-minute text-[10px] font-black uppercase text-white bg-red-600 px-2 py-0.5 rounded shadow-sm animate-pulse w-max">
-                              🔥 LAST MINUTE DEAL
+                          {combo.promoEndTime !== Number.POSITIVE_INFINITY && (combo.promoEndTime - now) <= URGENCY_PULSE_MS && (
+                            <div className="last-minute text-[10px] font-black uppercase text-white bg-red-600 px-2 py-0.5 rounded shadow-sm w-max animate-pulse">
+                              🔥 HURRY! ENDING SOON
                             </div>
                           )}
                         </div>
@@ -397,13 +618,14 @@ export default function VendorMenu({ user, onLogout }) {
                     No items found in this category.
                   </motion.div>
                 ) : (
-                  filteredItems.map((item) => (
+                  filteredItems.map((item, index) => (
                     <motion.div
                       layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      whileHover={{ y: -6, scale: 1.03 }}
                       key={item._id}
                       className={`bg-white rounded-2xl border ${
                         isItemAvailable(item)
@@ -433,11 +655,7 @@ export default function VendorMenu({ user, onLogout }) {
                               Available
                             </span>
                           )}
-                          {item.availabilityStatus === "Low Stock" && (
-                            <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-orange-500/90 text-white rounded-full shadow-sm backdrop-blur-md border border-orange-400/50">
-                              Low Stock
-                            </span>
-                          )}
+
                           {item.availabilityStatus === "Out of Stock" && (
                             <span className="px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase bg-rose-500/90 text-white rounded-full shadow-sm backdrop-blur-md border border-rose-400/50">
                               Out of Stock
@@ -581,71 +799,60 @@ export default function VendorMenu({ user, onLogout }) {
         )}
       </AnimatePresence>
 
-      {/* 🤖 Smart AI Chat Widget */}
+      {/* 🍔 AI Assistant Modal Proposition */}
       <AnimatePresence>
-        {isChatOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className="fixed bottom-24 right-4 sm:right-6 lg:right-8 z-50 w-80 sm:w-96 rounded-3xl bg-white shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+        {showPromoModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowPromoModal(false)}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 cursor-pointer"
           >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3.5 flex items-center justify-between shadow-sm z-10">
-              <div className="flex items-center gap-2.5 text-white">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-md">
-                   <Bot className="w-4 h-4" />
-                </div>
-                <span className="font-bold text-sm tracking-wide">UniEats Assistant</span>
-              </div>
-              <button onClick={() => setIsChatOpen(false)} className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 rounded-xl transition-colors">
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-sm w-full relative overflow-hidden flex flex-col cursor-default"
+            >
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-100 rounded-full blur-[40px] opacity-60 pointer-events-none" />
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPromoModal(false);
+                }}
+                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors z-50 cursor-pointer"
+              >
                 <X className="w-4 h-4" />
               </button>
-            </div>
-            
-            {/* Chat Body */}
-            <div className="h-72 overflow-y-auto p-4 bg-slate-50/50 flex flex-col gap-3 custom-scrollbar">
-              {chatMessages.map((msg, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}
-                  key={i} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+              
+              <div className="p-8 pb-6 flex flex-col items-center text-center relative z-10 pointer-events-auto">
+                <div className="w-16 h-16 rounded-full bg-amber-100 flex flex-shrink-0 items-center justify-center text-3xl shadow-inner mb-5">
+                  🍔
+                </div>
+                <h3 className="text-xl font-extrabold text-slate-900 leading-tight mb-2">Not sure what to eat?</h3>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                  Try our trending combo! Handpicked AI recommendations just for you.
+                </p>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPromoModal(false);
+                    setTimeout(() => navigate('/offers'), 50);
+                  }}
+                  className="mt-6 w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white rounded-xl font-bold shadow-md hover:shadow-lg hover:shadow-orange-500/30 transition-all text-sm flex items-center justify-center gap-2 cursor-pointer relative z-50"
                 >
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed shadow-sm ${msg.sender === 'user' ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white text-slate-700 rounded-bl-sm border border-slate-200/60'}`}>
-                    {msg.text}
-                  </div>
-                </motion.div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input Footer */}
-            <div className="p-3 bg-white border-t border-slate-100 z-10">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                <input 
-                  type="text" 
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  placeholder="Ask for 'cheap', 'combos'..." 
-                  className="w-full text-sm rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-medium text-slate-700"
-                />
-                <button type="submit" className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-600/20 hover:bg-indigo-700 transition active:scale-95">
-                  <Send className="w-4 h-4 ml-0.5" />
+                  <Sparkles className="w-5 h-5 pointer-events-none" /> 
+                  <span className="pointer-events-none">View Combo Offers</span>
                 </button>
-              </form>
-            </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Floating Chat Button */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setIsChatOpen(!isChatOpen)}
-        className="fixed bottom-6 right-4 sm:right-6 lg:right-8 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center border-2 border-white ring-4 ring-indigo-500/20"
-      >
-        {isChatOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6 animate-pulse" />}
-      </motion.button>
+      <SmartAssistant foods={menuItems} />
 
       <Footer />
     </div>
