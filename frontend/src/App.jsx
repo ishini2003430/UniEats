@@ -22,7 +22,7 @@ import VendorMenu from "./pages/student/VendorMenu";
 import MyFavorites from "./pages/student/MyFavorites";
 import HomePage from "./pages/student/HomePage";
 import VendorReviews from "./pages/vendor/VendorReviews";
-
+import VendorSettingsPage from "./pages/vendor/AdminSettingsPage";
 
 
 
@@ -213,7 +213,14 @@ function App() {
                 <VendorDashboard user={user} onLogout={handleLogout} />
               }
             />
+            <Route
+              path="/settings"
+              element={
+                <VendorSettingsPage user={user} onLogout={handleLogout} />
+              }
+            />
           </>
+
         )}
 
         {/* ================= STUDENT ================= */}
@@ -314,6 +321,8 @@ function App() {
       <Route path="/login" element={<Login onLogin={handleLogin} />} />
       <Route path="/register" element={<Signin />} />
       <Route path="/review" element={<VendorReviews />} />
+      <Route path="/settings" element={<VendorSettingsPage />} />
+
       <Route
         path="/admin/login"
         element={<AdminLogin onLogin={handleLogin} />}

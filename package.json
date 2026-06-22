@@ -1,0 +1,22 @@
+{
+  "name": "unieats-campus-food-system",
+  "version": "1.0.0",
+  "description": "🍽️ UniEats – Campus Food Pre-Order & Pickup System\r 📌 Project Overview",
+  "main": "index.js",
+  "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UsharaChamudithaKumara/unieats-campus-food-system.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/UsharaChamudithaKumara/unieats-campus-food-system/issues"
+  },
+  "homepage": "https://github.com/UsharaChamudithaKumara/unieats-campus-food-system#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "@types/node": "^25.6.0"
+  }
+}
